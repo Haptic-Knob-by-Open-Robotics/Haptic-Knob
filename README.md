@@ -224,7 +224,7 @@ Two additional tasks support the real-time loop:
 
 ---
 
-## Configuration (early)
+## Configuration 
 
 Key firmware settings live in `app/Config.h`:
 - Control loop period / frequency
@@ -236,51 +236,45 @@ Key firmware settings live in `app/Config.h`:
 
 ---
 
-## Safety Behavior (early)
+## Safety Behavior 
 
 On critical faults (missed control heartbeat, invalid encoder/ADC samples, or unsafe command conditions), the system enters a safe state by calling `MotorDriver.disable()` and latching a fault flag for debugging via telemetry.
 
 ---
 
 ## Firmware File Structure
+
+```text
 firmware/
-src/
-main.cpp
+  src/
+    main.cpp
 
-app/
-  Config.h
-  Faults.h
+  app/
+    Config.h
+    Faults.h
+    SharedState.h
+    SharedState.cpp
+    ControlTask.h
+    ControlTask.cpp
+    TelemetryTask.h
+    TelemetryTask.cpp
+    WatchdogTask.h
+    WatchdogTask.cpp
 
-  SharedState.h
-  SharedState.cpp
+  drivers/
+    SpiBus.h
+    SpiBus.cpp
+    SsiEncoder.h
+    SsiEncoder.cpp
+    AdcSpi.h
+    AdcSpi.cpp
+    MotorDriver.h
+    MotorDriver.cpp
 
-  ControlTask.h
-  ControlTask.cpp
-  TelemetryTask.h
-  TelemetryTask.cpp
-  WatchdogTask.h
-  WatchdogTask.cpp
-
-drivers/
-  SpiBus.h
-  SpiBus.cpp
-
-  SsiEncoder.h
-  SsiEncoder.cpp
-
-  AdcSpi.h
-  AdcSpi.cpp
-
-  MotorDriver.h
-  MotorDriver.cpp
-
-control/
-  KalmanAngleVel.h
-  KalmanAngleVel.cpp
-
-  PID.h
-  PID.cpp
-
-  CurrentSetpoint.h
-  CurrentSetpoint.cpp
-
+  control/
+    KalmanAngleVel.h
+    KalmanAngleVel.cpp
+    PID.h
+    PID.cpp
+    CurrentSetpoint.h
+    CurrentSetpoint.cpp
