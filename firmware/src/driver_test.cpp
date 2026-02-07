@@ -1,8 +1,9 @@
 #include <SimpleFOC.h>
+#include <SimpleFOCDrivers.h>
+
 #include "../headers/constants.h"
 
-
-BLDCDriver6PWM driver = (PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
+BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
 void setup() {
     // use monitoring with seriol 

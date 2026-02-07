@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <SimpleFOC.h>
+#include <SimpleFOCDrivers.h>
 #include "../headers/constants.h"
+#include "../headers/MagneticSensorMT6701SSI.h"
+
 
 
 //4 pole pairs, 8 poles total
