@@ -4,6 +4,7 @@
     #include <SimpleFOCDrivers.h>
     #include "../headers/MagneticSensorMT6701SSI.h"
     #include "../headers/constants.h"
+    #include <math.h>
 
     // #define SENSOR1_CS 5 // some digital pin that you're using as the nCS pin
 
@@ -35,11 +36,15 @@
     {
         encoder.update(); // Update sensor values
     
+        float angle = fmod(encoder.getAngle() * (180.0 / M_PI), 360.0);
+        if (angle < 0) angle += 360.0;
+
         Serial.print("Angle: ");
-        Serial.print(encoder.getAngle());
+        Serial.print(angle, 2); // Print angle with 2 decimal places
         Serial.print("\t");
         Serial.print("Velocity: ");
         Serial.println(encoder.getVelocity());
+
         
         delay(100);
     }
