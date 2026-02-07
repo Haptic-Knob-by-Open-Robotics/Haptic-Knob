@@ -1,26 +1,51 @@
 #include <Arduino.h>
 #include <SimpleFOC.h>
 #include <SimpleFOCDrivers.h>
-#include "../headers/constants.h"
+#include "..//constants.h"
 #include "../headers/MagneticSensorMT6701SSI.h"
 
 
-
+headers
 //4 pole pairs, 8 poles total
 BLDCMotor motor = BLDCMotor(4); // set up for 4 pole pairs
 // BLDCDriver6PWM( int phA_h, int phA_l, int phB_h, int phB_l, int phC_h, int phC_l, int en)
 BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN); 
 
+MagneticSensorMT6701SSI encoder = MagneticSensorMT6701SSI(PIN_ENC_CS);
 
-#define SENSOR1_CS 5 // some digital pin that you're using as the nCS pin
-MagneticSensorMT6701SSI sensor1(SENSOR1_CS);
-
+// current sense placeholder, not yet connected to the hardware
+InlineCurrentSense current_sense = InlineCurrentSense(0.01, 50.0, A0, A2);
 
 void setup() {
-    sensor1.init();
+    Serial.begin(115200);
+    encoder.init();
+    Serial.println("Sensor initialized");
+    delay(1000);
 }
 
 void loop() 
 {
+    encoder.init();
 
+    motor.linkSensor(&encoder);
+
+    // Driver Voltages
+    driver.voltage_limit = 5;
+    driver.voltage_power_supply = 3.3;
+    
+    // limiting voltage 
+    motor.voltage_limit = 3;   // Volts
+    // or current  - if phase resistance provided
+    motor.current_limit = 0.5; // Amps
+
+    //linking motor to driver
+
+    Serial.print("Driver init ");
+    // init driver
+    if (driver.init())  Serial.println("success!");
+    else{
+        Serial.println("failed!");
+        return;
+    }
+        motor.linkDriver(&driver);
 }

@@ -5,3 +5,6 @@
 #define PIN_WL 15
 #define PIN_WH 16
 #define PIN_EN 17
+#define PIN_ENC_MISO 42
+#define PIN_ENC_CLK 41
+#define PIN_ENC_CS 40
