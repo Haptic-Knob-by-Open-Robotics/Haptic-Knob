@@ -19,6 +19,7 @@ The core idea is simple: we measure how you turn the knob (position, speed, acce
   - [Diode Model](#diode-model)
 - [What does it feel like to turn the knob, and why?](#what-does-it-feel-like-to-turn-the-knob-and-why)
 - [Parameters you can tune](#parameters-you-can-tune)
+- [System Block Diagram](#system-block-diagram)
 - [Firmware](#firmware)
   - [Firmware Overview](#firmware-overview)
   - [Firmware Architecture](#firmware-architecture)
@@ -175,6 +176,13 @@ These are the knobs behind the knob.
 
 ---
 
+## System Block Diagram
+
+![System Block Diagram](assets/01-20-26%20Full%20System%20Block%20Diagram-Full%20System.drawio.svg)
+
+
+---
+
 # Firmware
 
 ## Firmware Overview
@@ -278,3 +286,4 @@ firmware/
     PID.cpp
     CurrentSetpoint.h
     CurrentSetpoint.cpp
+
