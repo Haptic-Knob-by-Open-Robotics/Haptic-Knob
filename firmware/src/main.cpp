@@ -1,47 +1,126 @@
 #include <Arduino.h>
+#include <SimpleFOC.h>
+
 #include "app/Config.h"
 
+// Drivers / modules
+#include "drivers/SpiBus.h"
 #include "drivers/SsiEncoder.h"
+#include "drivers/AdcSpi.h"
 #include "drivers/MotorDriver.h"
 
-#include "drivers/SpiBus.h"
-#include "drivers/AdcSpi.h"
+// App layer
 #include "app/SharedState.h"
 #include "app/ControlTask.h"
 #include "app/TelemetryTask.h"
 #include "app/WatchdogTask.h"
 
+#include "drivers/MT6701Sensor.h"
 
-// GLobal Driver INstances. We construct these once and reuse across the firmware
+
+
+// ===================== GLOBAL INSTANCES ==========================
+
+// Shared SPI bus (encoder + ADC). Exact pins/frequency/mode will come from config.h
+SpiBus spiBus; 
+
+// MT6701 encoder (SSI). This driver reads the raw angle over SSI
 SsiEncoder encoder(PIN_ENC_CS, PIN_ENC_CLK, PIN_ENC_MISO);
+
+// ADC current sense (SPI). Implement later keep as stub if needed 
+AdcSpi adc(PIN_ADC_CS); 
+
+// Motor driver wrapper for our 6-PWM bridge (uses MCPWM under the hood)
 MotorDriver MtrDrv(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
+
+// Shared state for telemetry + watchdog heartbeat 
+SharedState gShared; 
+
+// ====================== SIMPLEFOC OBJECTS ========================
+
+// Motor has 4 pole paris 
+BLDCMotor motor(4); 
+
+// 6-PWM driver object SimpleFOC will use
+BLDCDriver6PWM focDriver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
+
+// Note SimpleFOC needs a Sensor to call sensor->getAngle(). Since we're using MT6701 over SSI, 
+// we will provide a small wrapper class that will expose the encoder through the simpleFOC sensor interface.
+MT6701Sensor focSensor(&encoder); 
 
 
 // ====================== HELPER FUNCTIONS =========================
 
 static bool initDrivers(){
+  
+  // SPI bus (shared)
+  if (!spiBus.init(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, SPI_HZ)) {
+    Serial.println("SPI bus init failed!");
+    return false;
+  }
+  Serial.println("SPI bus initialized");
 
-  // Encoder init
+
+  // Encoder init (MT6701 SSI)
   if (!encoder.init()) {
     Serial.println("Encoder init failed!");
     return false 
   }
   Serial.println("Encoder initialized");
 
-  // Motor driver init
+  // ADC (current sensing) 
+  if (!adc.init(&spiBus)) {
+    Serial.println("ADC init failed!");
+    return false; 
+  }
+  Serial.println("ADC initialized");
+
+  // Motor driver wrapper 
   if(!MtrDrv.init(VLIM, VSUP)) {
     Serial.println("Motor Driver init failed!");
     return false;
   }
-
-  // Safety default: 
-  // Note in our final firmware design we may want to defer enable() until watchdog is armed and tasks are live 
-  MtrDrv.enable();
-  Serial.println("Motor Driver initialized");
+  Serial.println("Motor Driver wrapper initialized");
 
   return true;
 }
 
+
+static bool initSimpleFOC() {
+
+  // Configure SimpleFOC driver 
+  focDriver.pwm_frequency = 30000;
+  focDriver.dead_zone = 0.05f;
+  focDriver.voltage_power_supply = VSUP;   // e.g., 9V supply (from your diagram)
+  focDriver.voltage_limit = VLIM;          // safety clamp
+  if (!focDriver.init()) {
+    Serial.println("SimpleFOC driver init failed!");
+    return false;
+  }
+
+  // Link motor to driver + sensor 
+  motor.linkDriver(&focDriver); 
+  motor.linkSensor(&focSensor);
+
+  // Choose initial model (rn set as torque-voltage)
+  motor.controller = MotionControlType::torque;
+  motor.torque_controller = TorqueControlType::voltage; 
+
+  // Safety limits
+  motor.voltage_limit = VLIM;
+  motor.current_limit = I_LIM;  // only used if/when current sense is enabled
+
+  // Init motor + FOC
+  motor.init();
+
+  // If sensor direction is wrong, initFOC may fail or behave badly.
+  // You can later use motor.initFOC() with an offset calibration routine.
+  motor.initFOC();
+
+  Serial.println("SimpleFOC initialized");
+  return true;
+
+}
 static bool initFirmware() {
 
   // Current bring up we're just initilaizing encoder and motor driver
@@ -50,8 +129,10 @@ static bool initFirmware() {
   // need to intialized shared SPI bus (for encoder + ADC)
   // need to iniailzise shared state + fault flags 
   // initialize control blocks (Estimator/Kalman, Our Setpoint MOdel, PID)
-  return initDrivers(); 
+  if (!initDrivers()) return false; 
+  if (!initSimpleFOC()) return false; 
 
+  return true; 
 }
 
 
@@ -62,9 +143,11 @@ static void startTasks() {
 }
 
 static void enterSafeState() {
-  // this will get called by WatchdogTask if there is a stall
-  // Disable motor driver or we can command zero output 
-  MtrDrv.setPWM(0.0f, 0.0f, 0.0f);
+  // Force motor safe state and halt.
+  // In final firmware, WatchdogTask will call a similar path.
+  motor.disable();
+  focDriver.disable();
+
   Serial.println("Entering SAFE STATE. Halting.");
   while (1) delay(1000);
 }
@@ -74,7 +157,7 @@ static void enterSafeState() {
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
-
+    delay(10);
   }
 
   if (!initFirmware()) {
@@ -87,17 +170,5 @@ void setup() {
 
 void loop() {
 
-  // Note in our final fimrware, ControlTask will run this logic at a fixed tick rate 
-  
-  encoder.update();
-  Serial.print("Angle: ");
-  Serial.print(encoder.angleDegWrapped(), 2);
-  Serial.print("\tVel (rad/s): ");
-  Serial.println(encoder.velocityRadS(), 4);
-
-  // open loop motor control
-  MtrDrv.setPWM(0.2f, 0.0f, 0.0f);
-  delay(5);
-  MtrDrv.setPWM(0.0f, 0.0f, 0.0f);
-  delay(95);
+  delay(1000); 
 }
