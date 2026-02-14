@@ -1,3 +1,4 @@
+// Pins definition
 #define PIN_UL 4
 #define PIN_UH 5
 #define PIN_VL 6
@@ -8,3 +9,7 @@
 #define PIN_ENC_MISO 42
 #define PIN_ENC_CLK 41
 #define PIN_ENC_CS 40
+
+// Setup values
+constexpr float VLIM = 3.3f;
+constexpr float VSUP = 5.0f;
