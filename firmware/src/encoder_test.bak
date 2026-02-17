@@ -2,8 +2,10 @@
     #include <SPI.h>
     #include <SimpleFOC.h>
     #include <SimpleFOCDrivers.h>
-    #include "../headers/MagneticSensorMT6701SSI.h"
-    #include "../headers/constants.h"
+    #include <encoders/mt6701/MagneticSensorMT6701SSI.h>
+    #include "app/Config.h"
+    //#include "../headers/MagneticSensorMT6701SSI.h"
+    //#include "../headers/constants.h"
     #include <math.h>
 
     // #define SENSOR1_CS 5 // some digital pin that you're using as the nCS pin

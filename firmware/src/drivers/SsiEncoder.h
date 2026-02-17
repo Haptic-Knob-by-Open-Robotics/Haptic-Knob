@@ -2,29 +2,22 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <SimpleFOC.h>
-#include <encoders/mt6701/MagneticSensorMT6701SSI.h>
+#include "MagneticSensorMT6701SSI.h"
 
 class SsiEncoder {
 public:
   SsiEncoder(int csPin, int clkPin, int misoPin);
 
-  // call once in setup()
-  bool init();
+  bool init();       // call once
+  void update();     // call often
 
-  // call repeatedly (ControlTask loop or loop())
-  void update();
-
-  // values from encoder
   float angleRad();
   float velocityRadS();
-
-  // convenience (optional)
   float angleDegWrapped();
+  uint16_t getRawAngle();  // Add this
 
 private:
   int _cs, _clk, _miso;
-
   MagneticSensorMT6701SSI _sensor;
   bool _ok = false;
 };
