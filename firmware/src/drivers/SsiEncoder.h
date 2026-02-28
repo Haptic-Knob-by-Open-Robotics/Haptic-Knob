@@ -2,10 +2,11 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-//#include <SimpleFOC.h>
-#include "MagneticSensorMT6701SSI.h"
+// #include <SimpleFOC.h>
+#include "drivers/newMagneticSensorMT6701SSI.h"
 
-class SsiEncoder {
+class SsiEncoder
+{
 public:
   SsiEncoder(int csPin, int clkPin, int misoPin);
 
@@ -25,6 +26,6 @@ public:
 private:
   int _cs, _clk, _miso;
 
-  MagneticSensorMT6701SSI _sensor;
+  MT6701SensorCustom _sensor;
   bool _ok = false;
 };

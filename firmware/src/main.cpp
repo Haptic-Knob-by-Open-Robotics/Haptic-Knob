@@ -17,42 +17,39 @@
 
 // #include "drivers/MagneticSensorMT6701SSI.h"
 
-
-
 // // ===================== GLOBAL INSTANCES ==========================
 
 // // Shared SPI bus (encoder + ADC). Exact pins/frequency/mode will come from config.h
-// SpiBus spiBus; 
+// SpiBus spiBus;
 
 // // MT6701 encoder (SSI). This driver reads the raw angle over SSI
 // SsiEncoder encoder(PIN_ENC_CS, PIN_ENC_CLK, PIN_ENC_MISO);
 
-// // ADC current sense (SPI). Implement later keep as stub if needed 
-// AdcSpi adc(PIN_ADC_CS); 
+// // ADC current sense (SPI). Implement later keep as stub if needed
+// AdcSpi adc(PIN_ADC_CS);
 
 // // Motor driver wrapper for our 6-PWM bridge (uses MCPWM under the hood)
 // MotorDriver MtrDrv(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
-// // Shared state for telemetry + watchdog heartbeat 
-// SharedState gShared; 
+// // Shared state for telemetry + watchdog heartbeat
+// SharedState gShared;
 
 // // ====================== SIMPLEFOC OBJECTS ========================
 
-// // Motor has 4 pole paris 
-// BLDCMotor motor(4); 
+// // Motor has 4 pole paris
+// BLDCMotor motor(4);
 
 // // 6-PWM driver object SimpleFOC will use
 // BLDCDriver6PWM focDriver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
-// // Note SimpleFOC needs a Sensor to call sensor->getAngle(). Since we're using MT6701 over SSI, 
+// // Note SimpleFOC needs a Sensor to call sensor->getAngle(). Since we're using MT6701 over SSI,
 // // we will provide a small wrapper class that will expose the encoder through the simpleFOC sensor interface.
-// MT6701Sensor focSensor(&encoder); 
-
+// MT6701Sensor focSensor(&encoder);
 
 // // ====================== HELPER FUNCTIONS =========================
 
 // static bool initDrivers(){
-  
+
 //   // SPI bus (shared)
 //   if (!spiBus.init(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, SPI_HZ)) {
 //     Serial.println("SPI bus init failed!");
@@ -60,22 +57,21 @@
 //   }
 //   Serial.println("SPI bus initialized");
 
-
 //   // Encoder init (MT6701 SSI)
 //   if (!encoder.init()) {
 //     Serial.println("Encoder init failed!");
-//     return false 
+//     return false
 //   }
 //   Serial.println("Encoder initialized");
 
-//   // ADC (current sensing) 
+//   // ADC (current sensing)
 //   if (!adc.init(&spiBus)) {
 //     Serial.println("ADC init failed!");
-//     return false; 
+//     return false;
 //   }
 //   Serial.println("ADC initialized");
 
-//   // Motor driver wrapper 
+//   // Motor driver wrapper
 //   if(!MtrDrv.init(VLIM, VSUP)) {
 //     Serial.println("Motor Driver init failed!");
 //     return false;
@@ -85,10 +81,9 @@
 //   return true;
 // }
 
-
 // static bool initSimpleFOC() {
 
-//   // Configure SimpleFOC driver 
+//   // Configure SimpleFOC driver
 //   focDriver.pwm_frequency = 30000;
 //   focDriver.dead_zone = 0.05f;
 //   focDriver.voltage_power_supply = VSUP;   // e.g., 9V supply (from your diagram)
@@ -98,13 +93,13 @@
 //     return false;
 //   }
 
-//   // Link motor to driver + sensor 
-//   motor.linkDriver(&focDriver); 
+//   // Link motor to driver + sensor
+//   motor.linkDriver(&focDriver);
 //   motor.linkSensor(&focSensor);
 
 //   // Choose initial model (rn set as torque-voltage)
 //   motor.controller = MotionControlType::torque;
-//   motor.torque_controller = TorqueControlType::voltage; 
+//   motor.torque_controller = TorqueControlType::voltage;
 
 //   // Safety limits
 //   motor.voltage_limit = VLIM;
@@ -125,16 +120,15 @@
 
 //   // Current bring up we're just initilaizing encoder and motor driver
 
-//   // For our final implementation (when we have impelmented RTOS + ADC): 
+//   // For our final implementation (when we have impelmented RTOS + ADC):
 //   // need to intialized shared SPI bus (for encoder + ADC)
-//   // need to iniailzise shared state + fault flags 
+//   // need to iniailzise shared state + fault flags
 //   // initialize control blocks (Estimator/Kalman, Our Setpoint MOdel, PID)
-//   if (!initDrivers()) return false; 
-//   if (!initSimpleFOC()) return false; 
+//   if (!initDrivers()) return false;
+//   if (!initSimpleFOC()) return false;
 
-//   return true; 
+//   return true;
 // }
-
 
 // static void startTasks() {
 //   // Create controlTask (highest priority)
@@ -152,7 +146,6 @@
 //   while (1) delay(1000);
 // }
 
-
 // // Arduino Entry points
 // void setup() {
 //   Serial.begin(115200);
@@ -164,13 +157,13 @@
 //     enterSafeState();
 //   }
 
-//   startTasks(); 
+//   startTasks();
 //   // note after takss start loop() should idle forever
 // }
 
 // void loop() {
 
-//   delay(1000); 
+//   delay(1000);
 // }
 
 #include <Arduino.h>
@@ -179,14 +172,17 @@
 
 SsiEncoder encoder(PIN_ENC_CS, PIN_ENC_CLK, PIN_ENC_MISO);
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   delay(200);
   Serial.println("=== MT6701 Encoder Test ===");
 
-  if (!encoder.init()) {
+  if (!encoder.init())
+  {
     Serial.println("ERROR: Encoder initialization failed!");
-    while (1) {
+    while (1)
+    {
       delay(1000);
       Serial.println("Encoder init failed - halted");
     }
@@ -197,7 +193,8 @@ void setup() {
   delay(500);
 }
 
-void loop() {
+void loop()
+{
   encoder.update();
 
   float angleDeg = encoder.angleDegWrapped();
@@ -209,10 +206,10 @@ void loop() {
   Serial.print("° (");
   Serial.print(angleRad, 4);
   Serial.print(" rad)\t");
-  
+
   Serial.print("Velocity: ");
   Serial.print(velocity, 4);
   Serial.println(" rad/s");
 
-  delay(100);  // 10Hz update rate
+  delay(100); // 10Hz update rate
 }
