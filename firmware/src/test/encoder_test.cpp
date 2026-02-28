@@ -2,7 +2,7 @@
     #include <SPI.h>
     #include <SimpleFOC.h>
     #include <SimpleFOCDrivers.h>
-    #include "../drivers/MagneticSensorMT6701SSI.h"
+    #include "../drivers/newMagneticSensorMT6701SSI.h"
     #include "../app/Config.h"
     #include <math.h>
 
@@ -13,7 +13,7 @@
     // BLDCDriver6PWM( int phA_h, int phA_l, int phB_h, int phB_l, int phC_h, int phC_l, int en)
     // BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
-    MagneticSensorMT6701SSI encoder(PIN_ENC_CS); // Setup encoder 
+    MT6701SensorCustom encoder(PIN_ENC_CS); // Setup encoder 
 
     void setup() 
     {   
