@@ -10,6 +10,11 @@
 #define PIN_ENC_CLK 41
 #define PIN_ENC_CS 40
 
-// Setup values
-constexpr float VLIM = 3.3f;
-constexpr float VSUP = 5.0f;
+// Current sense pins
+#define PIN_I_A 11
+#define PIN_I_B 12
+#define PIN_I_C 13
+
+// // Setup values
+// constexpr float VLIM = 3.3f;
+// constexpr float VSUP = 5.0f;

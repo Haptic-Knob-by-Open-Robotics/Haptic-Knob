@@ -1,183 +1,141 @@
-// #include <Arduino.h>
-// #include <SimpleFOC.h>
+#include <Arduino.h>
+#include <SPI.h>
 
-// #include "app/Config.h"
+#include <SimpleFOC.h>
+#include <SimpleFOCDrivers.h>
 
-// // Drivers / modules
-// #include "drivers/SpiBus.h"
-// #include "drivers/SsiEncoder.h"
-// #include "drivers/AdcSpi.h"
-// #include "drivers/MotorDriver.h"
+#include "app/Config.h"
+#include "drivers/MagneticSensorMT6701SSI.h"
 
-// // App layer
-// #include "app/SharedState.h"
-// #include "app/ControlTask.h"
-// #include "app/TelemetryTask.h"
-// #include "app/WatchdogTask.h"
+// Hardware constants 
+static constexpr float SHUNT_RESISTOR = 0.012f;  // 12 mΩ
+static constexpr float AMP_GAIN       = 50.0f;
 
-// #include "drivers/MagneticSensorMT6701SSI.h"
+// SimpleFOC objects
+BLDCMotor motor(4); // 4 pole pairs (from your earlier bring-up)
 
+// 6-PWM driver (same pins as your test)
+BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
+// MT6701 SSI sensor (your working class)
+MagneticSensorMT6701SSI encoder(PIN_ENC_CS);
 
-// // ===================== GLOBAL INSTANCES ==========================
+// Inline current sense using 3 phase current pins
+InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 
-// // Shared SPI bus (encoder + ADC). Exact pins/frequency/mode will come from config.h
-// SpiBus spiBus; 
+// Optional: SimpleFOC commander for runtime tuning (nice for quick testing)
+Commander command = Commander(Serial);
+void doTarget(char* cmd) { command.scalar(&motor.target, cmd); }
+void doVoltageLimit(char* cmd) { command.scalar(&motor.voltage_limit, cmd); }
+void doCurrentLimit(char* cmd) { command.scalar(&motor.current_limit, cmd); }
 
-// // MT6701 encoder (SSI). This driver reads the raw angle over SSI
-// SsiEncoder encoder(PIN_ENC_CS, PIN_ENC_CLK, PIN_ENC_MISO);
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
 
-// // ADC current sense (SPI). Implement later keep as stub if needed 
-// AdcSpi adc(PIN_ADC_CS); 
+  Serial.println("\n=== INTEGRATED FOC CURRENT TORQUE TEST ===");
 
-// // Motor driver wrapper for our 6-PWM bridge (uses MCPWM under the hood)
-// MotorDriver MtrDrv(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
+  // 1) SPI + encoder init (from your encoder test)
+  SPI.begin(PIN_ENC_CLK, PIN_ENC_MISO, -1, PIN_ENC_CS);
+  encoder.init();
+  Serial.println("Encoder initialized");
 
-// // Shared state for telemetry + watchdog heartbeat 
-// SharedState gShared; 
+  // 2) Driver init (from your current test)
+  driver.voltage_power_supply = 12.0f;    // your supply
+  driver.voltage_limit        = 6.0f;     // safety clamp (tune)
+  driver.pwm_frequency        = 30000;    // your prior setting
+  driver.dead_zone            = 0.05f;
 
-// // ====================== SIMPLEFOC OBJECTS ========================
+  if (!driver.init()) {
+    Serial.println("Driver init FAILED");
+    while (1) delay(1000);
+  }
+  Serial.println("Driver initialized");
 
-// // Motor has 4 pole paris 
-// BLDCMotor motor(4); 
+  // 3) Current sense init + alignment (from your current test)
+  current_sense.linkDriver(&driver);
 
-// // 6-PWM driver object SimpleFOC will use
-// BLDCDriver6PWM focDriver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
+  if (!current_sense.init()) {
+    Serial.println("Current sense init FAILED");
+    while (1) delay(1000);
+  }
+  Serial.println("Current sense initialized");
 
-// // Note SimpleFOC needs a Sensor to call sensor->getAngle(). Since we're using MT6701 over SSI, 
-// // we will provide a small wrapper class that will expose the encoder through the simpleFOC sensor interface.
-// MT6701Sensor focSensor(&encoder); 
+  Serial.println("Calibrating current sense (driverAlign)...");
+  current_sense.driverAlign(12.0f);  // alignment voltage (you used 12)
+  Serial.println("Current sense calibration done");
 
+  // 4) Link everything to motor
+  motor.linkDriver(&driver);
+  motor.linkSensor(&encoder);
+  motor.linkCurrentSense(&current_sense);
 
-// // ====================== HELPER FUNCTIONS =========================
+  // 5) Choose control mode: torque via FOC current
+  motor.controller       = MotionControlType::torque;
+  motor.torque_controller = TorqueControlType::foc_current; // <-- closed-loop current torque
 
-// static bool initDrivers(){
-  
-//   // SPI bus (shared)
-//   if (!spiBus.init(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, SPI_HZ)) {
-//     Serial.println("SPI bus init failed!");
-//     return false;
-//   }
-//   Serial.println("SPI bus initialized");
+  // Safety limits
+  motor.voltage_limit = 6.0f;     // keep conservative at first
+  motor.current_limit = 1.0f;     // start low (amps), raise gradually
 
+  // 6) Motor init + FOC init
+  motor.init();
 
-//   // Encoder init (MT6701 SSI)
-//   if (!encoder.init()) {
-//     Serial.println("Encoder init failed!");
-//     return false 
-//   }
-//   Serial.println("Encoder initialized");
+  // If direction/offset are wrong, initFOC can behave badly.
+  // You may need to flip sensor direction depending on mounting:
+  // encoder.direction = Direction::CW; or Direction::CCW (if supported by your sensor class)
+  motor.initFOC();
 
-//   // ADC (current sensing) 
-//   if (!adc.init(&spiBus)) {
-//     Serial.println("ADC init failed!");
-//     return false; 
-//   }
-//   Serial.println("ADC initialized");
+  Serial.println("Motor + FOC initialized");
 
-//   // Motor driver wrapper 
-//   if(!MtrDrv.init(VLIM, VSUP)) {
-//     Serial.println("Motor Driver init failed!");
-//     return false;
-//   }
-//   Serial.println("Motor Driver wrapper initialized");
+  // 7) Start with zero torque command
+  motor.target = 0.0f;
 
-//   return true;
-// }
+  // Optional runtime tuning
+  command.add('T', doTarget, "target (Iq A)"); // in foc_current torque mode, target is Iq (A)
+  command.add('V', doVoltageLimit, "voltage_limit");
+  command.add('I', doCurrentLimit, "current_limit");
 
+  Serial.println("\nCommands:");
+  Serial.println("  T <amps>   (sets target Iq current in A)");
+  Serial.println("  I <amps>   (sets motor.current_limit)");
+  Serial.println("  V <volts>  (sets motor.voltage_limit)");
+  Serial.println("\nStart by trying: T 0.2  (small torque)\n");
+}
 
-// static bool initSimpleFOC() {
+void loop() {
+  // FOC loop must run fast and continuously
+  motor.loopFOC();
 
-//   // Configure SimpleFOC driver 
-//   focDriver.pwm_frequency = 30000;
-//   focDriver.dead_zone = 0.05f;
-//   focDriver.voltage_power_supply = VSUP;   // e.g., 9V supply (from your diagram)
-//   focDriver.voltage_limit = VLIM;          // safety clamp
-//   if (!focDriver.init()) {
-//     Serial.println("SimpleFOC driver init failed!");
-//     return false;
-//   }
+  // Apply commanded torque/current
+  motor.move();
 
-//   // Link motor to driver + sensor 
-//   motor.linkDriver(&focDriver); 
-//   motor.linkSensor(&focSensor);
+  // Optional: serial commander (lets you type commands in Serial Monitor)
+  command.run();
 
-//   // Choose initial model (rn set as torque-voltage)
-//   motor.controller = MotionControlType::torque;
-//   motor.torque_controller = TorqueControlType::voltage; 
+  // Low-rate debug print (don’t spam)
+  static uint32_t last_ms = 0;
+  if (millis() - last_ms > 200) {
+    last_ms = millis();
 
-//   // Safety limits
-//   motor.voltage_limit = VLIM;
-//   motor.current_limit = I_LIM;  // only used if/when current sense is enabled
+    // Read currents for visibility (phase)
+    PhaseCurrent_s ph = current_sense.getPhaseCurrents();
 
-//   // Init motor + FOC
-//   motor.init();
+    Serial.print("angle(rad): "); Serial.print(motor.shaftAngle(), 3);
+    Serial.print("\tvel(rad/s): "); Serial.print(motor.shaftVelocity(), 3);
+    Serial.print("\tIq_target(A): "); Serial.print(motor.target, 3);
 
-//   // If sensor direction is wrong, initFOC may fail or behave badly.
-//   // You can later use motor.initFOC() with an offset calibration routine.
-//   motor.initFOC();
+    Serial.print("\tIa: "); Serial.print(ph.a, 3);
+    Serial.print("\tIb: "); Serial.print(ph.b, 3);
+    Serial.print("\tIc: "); Serial.print(ph.c, 3);
 
-//   Serial.println("SimpleFOC initialized");
-//   return true;
-
-// }
-// static bool initFirmware() {
-
-//   // Current bring up we're just initilaizing encoder and motor driver
-
-//   // For our final implementation (when we have impelmented RTOS + ADC): 
-//   // need to intialized shared SPI bus (for encoder + ADC)
-//   // need to iniailzise shared state + fault flags 
-//   // initialize control blocks (Estimator/Kalman, Our Setpoint MOdel, PID)
-//   if (!initDrivers()) return false; 
-//   if (!initSimpleFOC()) return false; 
-
-//   return true; 
-// }
-
-
-// static void startTasks() {
-//   // Create controlTask (highest priority)
-//   // Create WatchdogTask (monitors heartbeat and disables motor on stall)
-//   // Create TelemetryTask (low rate logging, low priority)
-// }
-
-// static void enterSafeState() {
-//   // Force motor safe state and halt.
-//   // In final firmware, WatchdogTask will call a similar path.
-//   motor.disable();
-//   focDriver.disable();
-
-//   Serial.println("Entering SAFE STATE. Halting.");
-//   while (1) delay(1000);
-// }
-
-
-// // Arduino Entry points
-// void setup() {
-//   Serial.begin(115200);
-//   while (!Serial) {
-//     delay(10);
-//   }
-
-//   if (!initFirmware()) {
-//     enterSafeState();
-//   }
-
-//   startTasks(); 
-//   // note after takss start loop() should idle forever
-// }
-
-// void loop() {
-
-//   delay(1000); 
-// }
-
+    Serial.println();
+  }
+}
 #include <Arduino.h>
 #include "app/Config.h"
 #include "drivers/SsiEncoder.h"
 
-SsiEncoder encoder(PIN_ENC_CS, PIN_ENC_CLK, PIN_ENC_MISO);
 
 void setup() {
   Serial.begin(115200);
