@@ -7,7 +7,7 @@
 
 // MT6701 Magnetic Hall Encoder Datasheet: https://www.novosns.com/enfiles/MT6701_Rev.1.8.pdf
 
-// MT6701 sends 14 bit of angle data. Therefore, the number of distinct angle per revolution is 2^14 = 16384, 
+// MT6701 sends 14 bit of angle data. Therefore, the number of distinct angle per revolution is 2^14 = 16384,
 // this is count per revolution, the resolution is 360deg/16384 = 0.0219 deg
 #define MT6701_CPR 16384.0f
 
@@ -24,14 +24,13 @@
 // 1Mhz is the spi clock frequency
 static SPISettings MT6701SSISettings(1000000, MT6701_BITORDER, SPI_MODE1); // @suppress("Invalid arguments")
 
-
-
-class MagneticSensorMT6701SSI : public Sensor {
+class MT6701SensorCustom : public Sensor
+{
 public:
-    MagneticSensorMT6701SSI(int nCS = -1, SPISettings settings = MT6701SSISettings);
-    virtual ~MagneticSensorMT6701SSI();
+    MT6701SensorCustom(int nCS = -1, SPISettings settings = MT6701SSISettings);
+    virtual ~MT6701SensorCustom();
 
-    virtual void init(SPIClass* _spi = &SPI);
+    virtual void init(SPIClass *_spi = &SPI);
 
     float getSensorAngle() override; // angle in radians, return current value
 
@@ -39,9 +38,8 @@ protected:
     uint16_t readRawAngleSSI();
 
     SPISettings settings;
-    SPIClass* spi;
-	int nCS = -1;
+    SPIClass *spi;
+    int nCS = -1;
 };
-
 
 #endif
