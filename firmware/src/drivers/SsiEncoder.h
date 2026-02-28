@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <SimpleFOC.h>
-#include <encoders/mt6701/MagneticSensorMT6701SSI.h>
+//#include <SimpleFOC.h>
+#include "MagneticSensorMT6701SSI.h"
 
 class SsiEncoder {
 public:
