@@ -167,30 +167,59 @@
 // }
 
 #include <Arduino.h>
+#include <SimpleFOC.h>
 #include "app/Config.h"
-#include "drivers/SsiEncoder.h"
+#include "drivers/ModifiedMagneticSensorMT6701SSI.h"
+#include "drivers/SpiBus.h"
 
-SsiEncoder encoder(PIN_ENC_CS, PIN_ENC_CLK, PIN_ENC_MISO);
+SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
+ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 
 void setup()
 {
   Serial.begin(115200);
-  delay(200);
-  Serial.println("=== MT6701 Encoder Test ===");
+  delay(3000);
+  Serial.println("=== Encoder + Current Sense Test ===");
+  Serial.println(analogRead(PIN_I_A));
+  Serial.println(analogRead(PIN_I_B));
+  Serial.println(analogRead(PIN_I_C));
 
-  if (!encoder.init())
+  // SPI bus
+  spiBus.init();
+  encoder.init(spiBus.bus());
+  Serial.println("Encoder initialized!");
+
+  // // Driver
+  // Serial.print("Driver init... ");
+  // driver.voltage_power_supply = VSUP;
+  // driver.pwm_frequency = 20000;
+  // if (!driver.init())
+  // {
+  //   Serial.println("FAILED - halting");
+  //   while (1)
+  //     ;
+  // }
+  // Serial.println("done");
+
+  // Current sense
+  Serial.print("Current sense init... ");
+  current_sense.linkDriver(&driver);
+  if (current_sense.init())
   {
-    Serial.println("ERROR: Encoder initialization failed!");
+    Serial.println("SUCCESS");
+  }
+  else
+  {
+    Serial.println("FAILED - check ADC pins, shunt resistor, op-amp gain");
     while (1)
-    {
-      delay(1000);
-      Serial.println("Encoder init failed - halted");
-    }
+      ;
   }
 
-  Serial.println("Encoder initialized successfully!");
-  Serial.println("Starting readings...\n");
-  delay(500);
+  Serial.println("Calibrating...");
+  current_sense.driverAlign(VSUP);
+  Serial.println("Calibration done\n");
 }
 
 void loop()
@@ -198,18 +227,23 @@ void loop()
   encoder.update();
 
   float angleDeg = encoder.angleDegWrapped();
-  float angleRad = encoder.angleRad();
-  float velocity = encoder.velocityRadS();
+  float angleRad = encoder.getAngle();
+  float velocity = encoder.getVelocity();
+  PhaseCurrent_s currents = current_sense.getPhaseCurrents();
 
   Serial.print("Angle: ");
   Serial.print(angleDeg, 2);
   Serial.print("° (");
   Serial.print(angleRad, 4);
-  Serial.print(" rad)\t");
-
-  Serial.print("Velocity: ");
+  Serial.print(" rad)  Vel: ");
   Serial.print(velocity, 4);
-  Serial.println(" rad/s");
+  Serial.print(" rad/s  |  I_a: ");
+  Serial.print(currents.a, 3);
+  Serial.print(" A  I_b: ");
+  Serial.print(currents.b, 3);
+  Serial.print(" A  I_c: ");
+  Serial.print(currents.c, 3);
+  Serial.println(" A");
 
-  delay(100); // 10Hz update rate
+  delay(100);
 }
