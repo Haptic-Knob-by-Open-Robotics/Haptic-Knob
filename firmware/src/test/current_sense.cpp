@@ -2,9 +2,6 @@
 #include <SimpleFOC.h>
 #include "../app/Config.h"
 
-const float SHUNT_RESISTOR = 0.012f;  // 12 mΩ
-const float AMP_GAIN = 50.0f;
-
 InlineCurrentSense current_sense = InlineCurrentSense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
