@@ -22,9 +22,15 @@
 #define PIN_ENC_CS 40
 
 // Setup values
-constexpr float VLIM = 3.3f;
-constexpr float VSUP = 5.0f;
+constexpr float SUPPLY_VOLTAGE = 5.0f;
+constexpr float VOLTAGE_LIMIT = 4.0f;
+constexpr float CURRENT_LIMIT = 2.0f;
 
 // Current Sense Constants
 const float SHUNT_RESISTOR = 0.0107f;
 const float AMP_GAIN = 50.0f;
+
+constexpr int POLE_PAIRS = 4;
+
+constexpr float R_FEEL = 5.0f;
+constexpr float IQ_MAX = 2.0f;
