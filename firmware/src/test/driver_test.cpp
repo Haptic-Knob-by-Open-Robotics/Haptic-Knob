@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <SimpleFOC.h>
-#include "drivers/MagneticSensorMT6701SSI.h"
+#include "../drivers/ModifiedMagneticSensorMT6701SSI.h"
 #include "../app/config.h"
 
 BLDCMotor motor = BLDCMotor(4);

@@ -176,6 +176,7 @@ SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
 InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
+BLDCMotor motor(12);
 
 void setup()
 {
@@ -191,17 +192,18 @@ void setup()
   encoder.init(spiBus.bus());
   Serial.println("Encoder initialized!");
 
-  // // Driver
-  // Serial.print("Driver init... ");
-  // driver.voltage_power_supply = VSUP;
-  // driver.pwm_frequency = 20000;
-  // if (!driver.init())
-  // {
-  //   Serial.println("FAILED - halting");
-  //   while (1)
-  //     ;
-  // }
-  // Serial.println("done");
+  // Driver
+  Serial.print("Driver init... ");
+  driver.voltage_power_supply = VSUP;
+  driver.pwm_frequency = 30000;
+  driver.dead_zone = 0.05f;
+  if (!driver.init())
+  {
+    Serial.println("FAILED - halting");
+    while (1)
+      ;
+  }
+  Serial.println("done");
 
   // Current sense
   Serial.print("Current sense init... ");
@@ -220,6 +222,12 @@ void setup()
   Serial.println("Calibrating...");
   current_sense.driverAlign(VSUP);
   Serial.println("Calibration done\n");
+
+  motor.linkDriver(&driver);
+  motor.linkSensor(&encoder);
+  motor.controller = MotionControlType::velocity_openloop;
+  motor.voltage_limit = 3.0f; // keep low for testing
+  motor.init();
 }
 
 void loop()
@@ -246,4 +254,18 @@ void loop()
   Serial.println(" A");
 
   delay(100);
+
+  static uint32_t start = millis();
+  uint32_t elapsed = (millis() - start) % 6000;
+
+  if (elapsed < 3000)
+  {
+    motor.move(10.0f); // CW ~10 rad/s
+  }
+  else
+  {
+    motor.move(-10.0f); // CCW
+  }
+
+  motor.loopFOC();
 }
