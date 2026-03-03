@@ -26,7 +26,7 @@ void setup()
 
   // Driver
   Serial.print("Driver init... ");
-  driver.voltage_power_supply = VSUP;
+  driver.voltage_power_supply = SUPPLY_VOLTAGE;
   driver.pwm_frequency = 30000;
   driver.dead_zone = 0.05f;
   if (!driver.init())
@@ -52,7 +52,7 @@ void setup()
   }
 
   Serial.println("Calibrating...");
-  current_sense.driverAlign(VSUP);
+  current_sense.driverAlign(VOLTAGE_LIMIT);
   Serial.println("Calibration done\n");
 
   motor.linkDriver(&driver);
