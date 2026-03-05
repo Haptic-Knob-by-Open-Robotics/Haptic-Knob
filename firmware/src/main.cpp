@@ -10,14 +10,34 @@ InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(4);
 
+void getData()
+{
+  float angleDeg = encoder.angleDegWrapped();
+  float angleRad = encoder.getAngle();
+  float velocity = encoder.getVelocity();
+  PhaseCurrent_s currents = current_sense.getPhaseCurrents();
+
+  Serial.printf("Angle: %7.2f°  Velocity: %6.2f rad/s  Ia: %7.3fA  Ib: %7.3fA  Ic: %7.3fA\n",
+                angleDeg, velocity, currents.a, currents.b, currents.c);
+  // Serial.print("Angle: ");
+  // Serial.print(angleDeg, 2);
+  // Serial.print("°\tVelocity: ");
+  // Serial.print(velocity, 2);
+  // Serial.print(" rad/s\tIa: ");
+  // Serial.print(currents.a, 3);
+  // Serial.print("A\tIb: ");
+  // Serial.print(currents.b, 3);
+  // Serial.print("A\tIc: ");
+  // Serial.print(currents.c, 3);
+  // Serial.print("A");
+  // Serial.println();
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(3000);
   Serial.println("=== Encoder + Current Sense Test ===");
-  Serial.println(analogRead(PIN_I_A));
-  Serial.println(analogRead(PIN_I_B));
-  Serial.println(analogRead(PIN_I_C));
 
   // SPI bus
   spiBus.init();
@@ -58,46 +78,33 @@ void setup()
   motor.linkDriver(&driver);
   motor.linkSensor(&encoder);
   motor.controller = MotionControlType::velocity_openloop;
-  motor.voltage_limit = 3.0f; // keep low for testing
+  motor.voltage_limit = VOLTAGE_LIMIT; // keep low for testing
   motor.init();
 }
 
 void loop()
 {
   encoder.update();
-
-  float angleDeg = encoder.angleDegWrapped();
-  float angleRad = encoder.getAngle();
-  float velocity = encoder.getVelocity();
-  PhaseCurrent_s currents = current_sense.getPhaseCurrents();
-
-  Serial.print("Angle: ");
-  Serial.print(angleDeg, 2);
-  Serial.print("° (");
-  Serial.print(angleRad, 4);
-  Serial.print(" rad)  Vel: ");
-  Serial.print(velocity, 4);
-  Serial.print(" rad/s  |  I_a: ");
-  Serial.print(currents.a, 3);
-  Serial.print(" A  I_b: ");
-  Serial.print(currents.b, 3);
-  Serial.print(" A  I_c: ");
-  Serial.print(currents.c, 3);
-  Serial.println(" A");
-
-  delay(100);
+  float angleRad = encoder.getSensorAngle();
 
   static uint32_t start = millis();
+  static uint32_t last_ms = 0;
   uint32_t elapsed = (millis() - start) % 6000;
 
-  if (elapsed < 3000)
+  if (millis() - last_ms > 100)
   {
-    motor.move(10.0f); // CW ~10 rad/s
-  }
-  else
-  {
-    motor.move(-10.0f); // CCW
+    last_ms = millis();
+    getData();
   }
 
-  motor.loopFOC();
+  // if (elapsed < 3000)
+  // {
+  //   motor.move(-10.0f); // CW ~10 rad/s
+  // }
+  // else
+  // {
+  //   motor.move(10.0f); // CCW
+  // }
+
+  // motor.loopFOC();
 }

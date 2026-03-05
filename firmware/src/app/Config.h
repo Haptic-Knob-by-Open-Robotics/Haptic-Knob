@@ -23,8 +23,8 @@
 
 // Setup values
 constexpr float SUPPLY_VOLTAGE = 5.0f;
-constexpr float VOLTAGE_LIMIT = 4.0f;
-constexpr float CURRENT_LIMIT = 2.0f;
+constexpr float VOLTAGE_LIMIT = 3.0f;
+constexpr float CURRENT_LIMIT = 0.8f;
 
 // Current Sense Constants
 const float SHUNT_RESISTOR = 0.0107f;
