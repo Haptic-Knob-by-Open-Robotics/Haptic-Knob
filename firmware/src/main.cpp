@@ -19,18 +19,6 @@ void getData()
 
   Serial.printf("Angle: %7.2f°  Velocity: %6.2f rad/s  Ia: %7.3fA  Ib: %7.3fA  Ic: %7.3fA\n",
                 angleDeg, velocity, currents.a, currents.b, currents.c);
-  // Serial.print("Angle: ");
-  // Serial.print(angleDeg, 2);
-  // Serial.print("°\tVelocity: ");
-  // Serial.print(velocity, 2);
-  // Serial.print(" rad/s\tIa: ");
-  // Serial.print(currents.a, 3);
-  // Serial.print("A\tIb: ");
-  // Serial.print(currents.b, 3);
-  // Serial.print("A\tIc: ");
-  // Serial.print(currents.c, 3);
-  // Serial.print("A");
-  // Serial.println();
 }
 
 void setup()
