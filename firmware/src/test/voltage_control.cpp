@@ -62,14 +62,15 @@ void setup()
 
   motor.voltage_limit = VOLTAGE_LIMIT;
   motor.velocity_limit = 20.0f;
+  motor.voltage_sensor_align = 4.0f;
 
-  motor.voltage_sensor_align = 3.0f;
-  motor.voltage_limit = 3.0f;
-  motor.velocity_limit = 20.0f;
 
+  
   Serial.print("Motor init... ");
   motor.init();
   Serial.println("done");
+
+  motor.sensor_direction = Direction::CCW;
 
   Serial.print("FOC init... ");
   if (!motor.initFOC())
@@ -102,8 +103,10 @@ void loop()
 //     last_print = now;
 //     printData();
 //   }
-  motor.loopFOC();
-  motor.move(target_voltage_torque);
+    motor.loopFOC();
+    motor.move(1.0f);
+
+//   motor.move(target_voltage_torque);
 
   static uint32_t last_print = 0;
   if (millis() - last_print > 100)
