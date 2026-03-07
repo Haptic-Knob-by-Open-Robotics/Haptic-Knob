@@ -98,9 +98,11 @@ void setup()
   motor.LPF_current_q.Tf = 0.01f;
   motor.LPF_current_d.Tf = 0.01f;
 
+  motor.useMonitoring(Serial);
   Serial.print("Motor init");
   motor.init();
   Serial.print("Done");
+
 
   Serial.print("FOC init... ");
   if (!motor.initFOC())
@@ -108,6 +110,9 @@ void setup()
     Serial.println("FAILED");
     while (1) {}
   }
+
+  motor.target = target_current;
+
   Serial.println("Done");
 
   Serial.println("Starting torque test");
@@ -117,21 +122,23 @@ void loop()
 {
   motor.loopFOC();
   
-  motor.move(target_current); // set a constant target current
-  static uint32_t last_print = 0;
-  static uint32_t last_switch = 0;
-  uint32_t now = millis();
+  motor.move();
+  motor.monitor();
+  // command.run(); 
+  // static uint32_t last_print = 0;
+  // static uint32_t last_switch = 0;
+  // uint32_t now = millis();
 
-  // alternate direction every 3 seconds
-  if (now - last_switch > 3000)
-  {
-    last_switch = now;
-    target_current = -target_current;
-  }
+  // // alternate direction every 3 seconds
+  // if (now - last_switch > 3000)
+  // {
+  //   last_switch = now;
+  //   target_current = -target_current;
+  // }
 
-  if (now - last_print > 100)
-  {
-    last_print = now;
-    printData();
-  }
+  // if (now - last_print > 100)
+  // {
+  //   last_print = now;
+  //   printData();
+  // }
 }

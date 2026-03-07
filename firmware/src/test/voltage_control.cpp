@@ -70,7 +70,7 @@ void setup()
   motor.init();
   Serial.println("done");
 
-  motor.sensor_direction = Direction::CCW;
+  // motor.sensor_direction = Direction::CCW;
 
   Serial.print("FOC init... ");
   if (!motor.initFOC())
@@ -104,7 +104,7 @@ void loop()
 //     printData();
 //   }
     motor.loopFOC();
-    motor.move(1.0f);
+    motor.move(4.0f);
 
 //   motor.move(target_voltage_torque);
 

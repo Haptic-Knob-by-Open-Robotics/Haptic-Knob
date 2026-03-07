@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include <SimpleFOC.h>
-#include "../drivers/MagneticSensorMT6701SSI.h"
-#include "../app/Config.h"
+#include "app/Config.h"
+#include "drivers/ModifiedMagneticSensorMT6701SSI.h"
+#include "drivers/SpiBus.h"
 
 BLDCMotor motor = BLDCMotor(4);
 BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN);  // Swapped A and B
-MagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
 Commander command = Commander(Serial);
 
 void doTarget(char* cmd) { 

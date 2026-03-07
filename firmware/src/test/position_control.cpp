@@ -76,7 +76,6 @@ void setup()
   motor.init();
   Serial.println("done");
 
-   motor.sensor_direction = Direction::CW;
 
   Serial.print("FOC init... ");
   if (!motor.initFOC())

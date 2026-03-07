@@ -50,7 +50,7 @@ void setup()
     Serial.println("Encoder initialized");
 
     // 3) Init 6PWM driver
-    driver.voltage_power_supply = SUPPLY_VOLTAGE;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY;
     driver.voltage_limit = VOLTAGE_LIMIT;
     driver.pwm_frequency = 30000;
     driver.dead_zone = 0.05f;
