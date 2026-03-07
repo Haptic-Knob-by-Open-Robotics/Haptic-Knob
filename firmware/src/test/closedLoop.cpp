@@ -73,9 +73,9 @@ void setup()
       ;
   }
 
-  Serial.println("Calibrating...");
-  current_sense.driverAlign(VOLTAGE_LIMIT);
-  Serial.println("Calibration done\n");
+//   Serial.println("Calibrating...");
+//   current_sense.driverAlign(VOLTAGE_LIMIT);
+//   Serial.println("Calibration done\n");
 
   motor.linkDriver(&driver);
   motor.linkSensor(&encoder);
