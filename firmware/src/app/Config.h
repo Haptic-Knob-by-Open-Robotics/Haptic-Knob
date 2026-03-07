@@ -22,7 +22,7 @@
 #define PIN_ENC_CS 40
 
 // Setup values
-constexpr float SUPPLY_VOLTAGE = 5.0f;
+constexpr float VOLTAGE_SUPPLY = 5.0f;
 constexpr float VOLTAGE_LIMIT = 3.0f;
 constexpr float CURRENT_LIMIT = 0.8f;
 
