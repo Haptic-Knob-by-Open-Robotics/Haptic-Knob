@@ -115,7 +115,11 @@ bool driverSetup() {
     driver.dead_zone = 0.05f; 
 
     // Supply voltage available to the driver 
+<<<<<<< HEAD
     driver.voltage_power_supply = SUPPLY_VOLTAGE; 
+=======
+    driver.voltage_power_supply = VOLTAGE_SUPPLY; 
+>>>>>>> 438ac9c9773bf2ae0d60a38496a47c036033c540
 
     // Maximum voltage the controller is allowed to apply 
     driver.voltage_limit = VOLTAGE_LIMIT; 
