@@ -2,8 +2,9 @@
     #include <SPI.h>
     #include <SimpleFOC.h>
     #include <SimpleFOCDrivers.h>
-    #include "../drivers/newMagneticSensorMT6701SSI.h"
-    #include "../app/Config.h"
+    #include "drivers/ModifiedMagneticSensorMT6701SSI.h"
+    #include "app/Config.h"
+    #include "drivers/SpiBus.h"
     #include <math.h>
 
     // #define SENSOR1_CS 5 // some digital pin that you're using as the nCS pin
@@ -13,14 +14,16 @@
     // BLDCDriver6PWM( int phA_h, int phA_l, int phB_h, int phB_l, int phC_h, int phC_l, int en)
     // BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
-    MT6701SensorCustom encoder(PIN_ENC_CS); // Setup encoder 
+    ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS); // Setup encoder 
+    SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 
     void setup() 
     {   
         Serial.begin(115200);
 
-        SPI.begin(PIN_ENC_CLK, PIN_ENC_MISO, -1, PIN_ENC_CS); //(clk, miso, mosi, cs);
-
+        spiBus.init();
+        encoder.init(spiBus.bus());
+        Serial.println("Encoder initialized");
         encoder.init();
 
         Serial.println("Sensor initialized");
