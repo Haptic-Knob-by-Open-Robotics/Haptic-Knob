@@ -5,12 +5,12 @@
 #include "drivers/SpiBus.h"
 
 BLDCMotor motor(4);
+SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 BLDCDriver6PWM driver(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN);  // swapped A/B
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 
 unsigned long lastPrintUs = 0;
-const unsigned long printPeriodUs = 10000;   // 100 Hz logging
+const unsigned long printPeriodUs = 10000;   // 100 Hz
 
 float prevWrappedRad = 0.0f;
 float unwrappedRad = 0.0f;
@@ -20,12 +20,10 @@ void setup() {
     Serial.begin(115200);
     delay(3000);
 
-    Serial.println("Open-loop motor + encoder logging test");
-
+    Serial.println("\nTEST WITH SWAPPED PHASES A-B\n");
     spiBus.init();
-    encoder.init(spiBus.bus());
+     encoder.init(spiBus.bus());
     Serial.println("Encoder initialized");
-
     motor.linkSensor(&encoder);
 
     driver.pwm_frequency = 30000;
@@ -35,14 +33,17 @@ void setup() {
 
     motor.controller = MotionControlType::velocity_openloop;
     motor.voltage_limit = 2.0f;
-    motor.target = 2.0f;
 
     motor.init();
 
+    motor.target = 2.0f;
+
+    Serial.println("OPEN LOOP TEST FIXED AT T2");
     Serial.println("time_s,target_rad_s,wrapped_deg,wrapped_rad,unwrapped_deg,unwrapped_rad,velocity_rad_s");
 }
 
 void loop() {
+    motor.loopFOC();
     motor.move();
 
     encoder.update();
