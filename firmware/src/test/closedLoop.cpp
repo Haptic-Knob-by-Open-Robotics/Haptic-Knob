@@ -48,7 +48,7 @@ void setup()
 
   // Driver
   Serial.print("Driver init... ");
-  driver.voltage_power_supply = SUPPLY_VOLTAGE;
+  driver.voltage_power_supply = VOLTAGE_SUPPLY;
   driver.pwm_frequency = 30000;
   driver.dead_zone = 0.05f;
   if (!driver.init())
