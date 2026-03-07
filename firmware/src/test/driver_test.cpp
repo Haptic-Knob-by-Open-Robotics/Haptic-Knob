@@ -3,7 +3,7 @@
 #include "../drivers/ModifiedMagneticSensorMT6701SSI.h"
 #include "../app/config.h"
 
-BLDCMotor motor = BLDCMotor(4);
+BLDCMotor motor = BLDCMotor(POLE_PAIRS);
 BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN);  // Swapped A and B
 
 void setup() {

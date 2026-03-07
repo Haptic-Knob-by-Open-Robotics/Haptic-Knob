@@ -7,7 +7,7 @@
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
 BLDCDriver6PWM driver(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN);
-BLDCMotor motor(7);
+BLDCMotor motor(POLE_PAIRS);
 
 float target_angle = 0.0f;
 bool position_set = false;
