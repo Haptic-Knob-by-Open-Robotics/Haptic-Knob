@@ -190,13 +190,13 @@ bool motorSetup() {
     // are meant to be replaced and fine tuned so change these as you wish. 
     // note that q-axis current -> torque producing current
     //           d-axis current -> usually kept near zero for normal FOC operations 
-    motor.PID_current_q.P = 2.0f;
-    motor.PID_current_q.I = 200.0f;
+    motor.PID_current_q.P = 0.5f;
+    motor.PID_current_q.I = 5.0f;
     motor.PID_current_q.D = 0.0f;
     motor.PID_current_q.limit = VOLTAGE_LIMIT;
 
-    motor.PID_current_d.P = 2.0f;
-    motor.PID_current_d.I = 200.0f;
+    motor.PID_current_d.P = 0.5f;
+    motor.PID_current_d.I = 5.0f;
     motor.PID_current_d.D = 0.0f;
     motor.PID_current_d.limit = VOLTAGE_LIMIT;
 
