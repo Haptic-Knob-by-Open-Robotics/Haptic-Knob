@@ -30,7 +30,7 @@ constexpr float CURRENT_LIMIT = 0.8f;
 const float SHUNT_RESISTOR = 0.0107f;
 const float AMP_GAIN = 50.0f;
 
-constexpr int POLE_PAIRS = 4;
+constexpr int POLE_PAIRS = 7;
 
 constexpr float R_FEEL = 5.0f;
 constexpr float IQ_MAX = 2.0f;
