@@ -268,7 +268,7 @@ bool motorSetup()
     motor.PID_current_d.D = PID_Constants[5];
     motor.PID_current_d.limit = VOLTAGE_LIMIT;
 
-    // Low-pass filters on measured currents (this helps reduce the noise in the current loop)
+        // Low-pass filters on measured currents (this helps reduce the noise in the current loop)
     motor.LPF_current_q.Tf = 0.002f; // change these as u wish
     motor.LPF_current_d.Tf = 0.002f;
 
