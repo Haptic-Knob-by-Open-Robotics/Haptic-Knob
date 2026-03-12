@@ -6,7 +6,6 @@
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -19,16 +18,25 @@ static float clampf(float x, float lo, float hi)
     return x;
 }
 
+// ── Diode mode parameters ──────────────────────────────────────────────────
+// CCW rotation (negative omega) is blocked, CW rotation is free.
+// Resistance only kicks in once velocity crosses CCW_THRESHOLD.
+static constexpr float CCW_THRESHOLD = 0.1f; // rad/s — how fast CCW before resistance starts
+static constexpr float DIODE_R_FEEL = 2.0f;   // V/(rad/s) — proportional resistance strength
+
 void setup()
 {
     Serial.begin(115200);
     delay(1500);
     Serial.println("=== Diode Mode Haptic Knob ===");
 
+    // 1. Encoder
     spiBus.init();
     encoder.init(spiBus.bus());
-    Serial.println("Encoder initialized!");
+    encoder.update();
+    Serial.println("Encoder initialized");
 
+    // 2. Driver
     driver.voltage_power_supply = VOLTAGE_SUPPLY;
     driver.voltage_limit = VOLTAGE_LIMIT;
     driver.pwm_frequency = 30000;
@@ -39,70 +47,63 @@ void setup()
         while (1)
             ;
     }
+    driver.enable();
     Serial.println("Driver initialized");
 
-    current_sense.linkDriver(&driver);
-    if (!current_sense.init())
+    // 3. Motor
+    motor.linkDriver(&driver);
+    motor.linkSensor(&encoder);
+
+    motor.controller = MotionControlType::torque;
+    motor.torque_controller = TorqueControlType::voltage; // no current PID needed
+    motor.voltage_limit = VOLTAGE_LIMIT;
+    motor.voltage_sensor_align = 1.0f; // safe for 5V supply
+
+    motor.LPF_velocity.Tf = 0.05f; // smooth velocity, low enough to stay responsive
+
+    motor.init();
+    if (!motor.initFOC())
     {
-        Serial.println("Current sense FAILED");
+        Serial.println("FOC FAILED");
         while (1)
             ;
     }
-    current_sense.driverAlign(1.0f); // low alignment voltage
-    Serial.println("Current sense ready");
-
-    motor.linkDriver(&driver);
-    motor.linkSensor(&encoder);
-    motor.linkCurrentSense(&current_sense);
-
-    motor.controller = MotionControlType::torque;
-    motor.torque_controller = TorqueControlType::voltage; // no PI tuning needed
-    motor.voltage_limit = VOLTAGE_LIMIT;
-    motor.voltage_sensor_align = 1.0f;
-    motor.LPF_velocity.Tf = 0.15f; // smooth velocity estimate
-
-    motor.init();
-    motor.initFOC();
     motor.target = 0.0f;
 
-    Serial.println("Ready - diode mode active (CW free, CCW blocked)");
+    Serial.println("Ready — CW free, CCW blocked");
 }
 
 void loop()
 {
-    motor.loopFOC();
+    // 1. Encoder first so loopFOC gets fresh position data
     encoder.update();
 
-    const float DEADBAND = -1.0f;
-    const float omega = motor.shaftVelocity();        // encoder velocity for control
-    const float angleDeg = encoder.angleDegWrapped(); // 0-360° for display
+    // 2. FOC electrical loop
+    motor.loopFOC();
 
+    // 3. Read velocity
+    const float omega = motor.shaftVelocity();
+    const float angleDeg = encoder.angleDegWrapped();
+
+    // 4. Diode logic — only resist CCW (negative omega) past threshold
     float v_des = 0.0f;
-    if (omega < DEADBAND)
+    if (omega > CCW_THRESHOLD)
     {
-        v_des = R_FEEL * omega;
-        v_des = clampf(v_des, -VOLTAGE_LIMIT, VOLTAGE_LIMIT);
+        // Proportional resistance: pushes back harder the faster you go CCW
+        v_des = clampf(-DIODE_R_FEEL * omega, -VOLTAGE_LIMIT, 0.0f);
+        // Clamp upper bound to 0 so we never accidentally assist CW motion
     }
 
+    // 5. Apply voltage command
     motor.move(v_des);
 
+    // 6. Telemetry at 10 Hz
     static uint32_t last_ms = 0;
     if (millis() - last_ms > 100)
     {
         last_ms = millis();
-        PhaseCurrent_s ph = current_sense.getPhaseCurrents();
-        Serial.print("ang: ");
-        Serial.print(angleDeg, 1);
-        Serial.print("°\tom: ");
-        Serial.print(omega, 3);
-        Serial.print("\tv: ");
-        Serial.print(v_des, 3);
-        Serial.print("\tIa: ");
-        Serial.print(ph.a, 3);
-        Serial.print("\tIb: ");
-        Serial.print(ph.b, 3);
-        Serial.print("\tIc: ");
-        Serial.print(ph.c, 3);
-        Serial.println();
+        Serial.printf(
+            "Angle: %6.1f deg | Vel: %7.3f rad/s | Vdes: %6.3f V\n",
+            angleDeg, omega, v_des);
     }
 }

@@ -4,7 +4,7 @@
 #include "drivers/ModifiedMagneticSensorMT6701SSI.h"
 #include "drivers/SpiBus.h"
 
-//Inductor model
+// Inductor model
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
@@ -135,7 +135,7 @@ void printDebugData(float omega, float rawAlpha, float torqueCmd, float iqCmd)
         currents.c);
 }
 
-//DRIVER SETUP
+// DRIVER SETUP
 
 bool driverSetup()
 {
@@ -285,7 +285,7 @@ void setup()
     Serial.println();
 }
 
-// MAIN LOOP 
+// MAIN LOOP
 
 void loop()
 {
@@ -297,15 +297,15 @@ void loop()
     lastLoopUs = nowUs;
 
     dt = clampf(dt, 0.0001f, 0.01f);
-//getting alpha
+    // getting alpha
     float omega = encoder.getVelocity();
     float rawAlpha = (omega - prevOmega) / dt;
     prevOmega = omega;
 
-    //first order filter
+    // first order filter
     float alphaFilterGain = dt / (ALPHA_FILTER_TF + dt);
     filteredAlpha += alphaFilterGain * (rawAlpha - filteredAlpha);
-    //torque formula
+    // torque formula
     float torqueCmd = -VIRTUAL_INDUCTANCE * filteredAlpha;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
 

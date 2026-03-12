@@ -64,6 +64,8 @@ ic_buf      = deque(maxlen=MAX_POINTS)
 iq_cmd_buf  = deque(maxlen=MAX_POINTS)
 iq_meas_buf = deque(maxlen=MAX_POINTS)
 gain_buf    = deque(maxlen=MAX_POINTS)
+omega_buf   = deque(maxlen=MAX_POINTS)
+torque_buf  = deque(maxlen=MAX_POINTS)
 
 pid_info = {
     "Q_P": None, "Q_I": None, "Q_D": None,
@@ -145,6 +147,8 @@ def serial_reader(port, baud, stop_event, pid_gains):
         # Telemetry
         m = TELEM_RE.search(line)
         if m:
+            omega   = float(m.group(3))
+            torque  = float(m.group(4))
             iq_cmd  = float(m.group(5))
             ia      = float(m.group(6))
             ib      = float(m.group(7))
@@ -161,6 +165,8 @@ def serial_reader(port, baud, stop_event, pid_gains):
                 iq_cmd_buf.append(iq_cmd)
                 iq_meas_buf.append(iq_meas)
                 gain_buf.append(gain)
+                omega_buf.append(omega)
+                torque_buf.append(torque)
                 current_gain["val"] = gain
 
     ser.close()
@@ -212,6 +218,8 @@ def demo_generator(stop_event):
             ia_buf.append(ia); ib_buf.append(ib); ic_buf.append(ic)
             iq_cmd_buf.append(iq_cmd); iq_meas_buf.append(iq_meas)
             gain_buf.append(g)
+            omega_buf.append(math.sin(omega * t) * 5.0)
+            torque_buf.append(iq_cmd * 0.035)
 
         time.sleep(0.02)  # 50 Hz
 
@@ -244,7 +252,7 @@ def build_gui(initial_pid, is_demo):
         "legend.edgecolor": "#555577",
     })
 
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure(figsize=(7, 4))
     fig.suptitle("Haptic Knob – Live Telemetry", fontsize=14,
                  fontweight="bold", color="#cba6f7")
 
@@ -433,6 +441,8 @@ def make_animation(fig, pid_text, stats_text, axes, lines,
             iqc  = list(iq_cmd_buf)
             iqm  = list(iq_meas_buf)
             gv   = current_gain["val"]
+            omg  = list(omega_buf)
+            trq  = list(torque_buf)
 
         pid_text.set_text(_pid_label())
 
@@ -483,7 +493,8 @@ def make_animation(fig, pid_text, stats_text, axes, lines,
         n = len(ts_w)
         hz = (n - 1) / (ts_w[-1] - ts_w[0]) if n >= 2 and ts_w[-1] != ts_w[0] else 0
         stats_text.set_text(
-            f"Samples: {n}   |   Rate: {hz:.1f} Hz   |   Gain: {gv:.2f}   |   "
+            f"Samples: {n}   |   Rate: {hz:.1f} Hz   |   Gain: {gv:.3f}   |   "
+            f"ω: {omg[-1]:+.3f} rad/s   τ: {trq[-1]:+.4f} N·m   |   "
             f"Ia: {ia[-1]:+.3f}  Ib: {ib[-1]:+.3f}  Ic: {ic[-1]:+.3f} A   |   "
             f"IqCmd: {iqc[-1]:+.3f}  IqMeas: {iqm[-1]:+.3f} A"
         )
@@ -507,7 +518,7 @@ def main():
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--pid", nargs=6, type=float,
                         metavar=("Q_P","Q_I","Q_D","D_P","D_I","D_D"),
-                        default=[2.0, 200.0, 0.0, 2.0, 200.0, 0.0])
+                        default=[5.0, 200.0, 0.0001, 5.0, 200.0, 0.0001])
     args = parser.parse_args()
 
     stop_event = threading.Event()

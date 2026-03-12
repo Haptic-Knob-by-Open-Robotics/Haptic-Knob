@@ -39,6 +39,7 @@ void setup()
   driver.voltage_power_supply = VOLTAGE_SUPPLY;
   driver.pwm_frequency = 30000;
   driver.dead_zone = 0.05f;
+  driver.voltage_limit = VOLTAGE_LIMIT;
 
   Serial.print("Driver init... ");
   if (!driver.init())
@@ -59,20 +60,20 @@ void setup()
 
   motor.voltage_limit = VOLTAGE_LIMIT;
   motor.velocity_limit = 20.0f;
-  motor.voltage_sensor_align = 4.0f;
+  motor.voltage_sensor_align = 1.0f;
 
   // Position loop tuning
-  motor.P_angle.P = 20.0f;
-  motor.P_angle.output_ramp = 1000.0f;
-  motor.P_angle.limit = 30.0f;
+  motor.P_angle.P = 2.0f;
+  motor.P_angle.output_ramp = 300.0f;
+  motor.P_angle.limit = 20.0f;
 
-  motor.PID_velocity.P = 0.8f;
-  motor.PID_velocity.I = 10.0f;
-  motor.PID_velocity.D = 0.0f;
-  motor.PID_velocity.output_ramp = 1000.0f;
-  motor.PID_velocity.limit = 4.0f;
+  motor.PID_velocity.P = 0.5f;
+  motor.PID_velocity.I = 0.5f;
+  motor.PID_velocity.D = 0.0001f;
+  motor.PID_velocity.output_ramp = 300.0f;
+  motor.PID_velocity.limit = VOLTAGE_LIMIT;
 
-  motor.LPF_velocity.Tf = 0.01f;
+  motor.LPF_velocity.Tf = 0.05f;
 
   Serial.print("Motor init... ");
   motor.init();
@@ -91,7 +92,7 @@ void setup()
   delay(200);
 
   // Hold whatever angle the motor is currently at
-  target_angle = motor.shaft_angle + 0.5f;
+  target_angle = motor.shaft_angle;
 
   Serial.print("Target angle set to: ");
   Serial.println(target_angle, 4);
@@ -101,6 +102,7 @@ void setup()
 
 void loop()
 {
+  encoder.update();
   motor.loopFOC();
   motor.move(target_angle);
 
