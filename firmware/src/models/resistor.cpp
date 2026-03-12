@@ -37,13 +37,13 @@ InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 
 // Motor object
-// This i sthe high level motor model which will be used by the SimpleFOC library
+// This is the high level motor model which will be used by the SimpleFOC library
 BLDCMotor motor(POLE_PAIRS);
 
 // ================== CONTROL PARAMETERS ==============
 
 // The virtual damping constant for our resistor mode. Bigger -> harder to turn
-static constexpr float RESISTANCE = 100.0f;
+static constexpr float RESISTANCE = 0.0001f;
 
 // Motor torque constant Kt
 static constexpr float TORQUE_CONST = 0.035f;
@@ -147,7 +147,7 @@ void printDebugData(float torqueCmd, float iqCmd)
     Serial.printf(
         "Angle: %7.2f deg | AngleRad: %7.3f | Vel: %7.3f rad/s | "
         "TorqueCmd: %7.4f N*m | IqCmd: %6.3f A | "
-        "Ia: %6.3f A | Ib: %6.3f A | Ic: %6.3f A\n",
+        "Ia: %6.3f A | Ib: %6.3f A | Ic: %6.3f A | IqMeas: %6.3f A\n",
         angleDeg,
         angleRad,
         velocity,
@@ -155,7 +155,8 @@ void printDebugData(float torqueCmd, float iqCmd)
         iqCmd,
         currents.a,
         currents.b,
-        currents.c);
+        currents.c,
+        motor.current.q);
 }
 
 // ====================== DRIVER SETUP ====================
@@ -169,7 +170,7 @@ bool driverSetup()
     // Set PWM frequency for the inverter
     // Note that a higher PWM frequency generally gives smoother operation and keeps switching noise above audible range,
     // but it increases switching losses
-    driver.pwm_frequency = 30000; // 30 khz
+    driver.pwm_frequency = 30e3; // 30 khz
 
     // Dead-zone
     driver.dead_zone = 0.05f;
@@ -238,7 +239,7 @@ bool motorSetup()
     motor.linkSensor(&encoder);
     motor.linkCurrentSense(&current_sense);
 
-    // High-level motion mode: torque control. We set it to torque since our model computes desired torqu
+    // High-level motion mode: torque control. We set it to torque since our model computes desired torque
     motor.controller = MotionControlType::torque;
 
     // Low-level torque implementaiton: current controlled FOC (toruqe is propotional to q-axis current so we set this to foc_current)
@@ -268,7 +269,7 @@ bool motorSetup()
     motor.PID_current_d.D = PID_Constants[5];
     motor.PID_current_d.limit = VOLTAGE_LIMIT;
 
-        // Low-pass filters on measured currents (this helps reduce the noise in the current loop)
+    // Low-pass filters on measured currents (this helps reduce the noise in the current loop)
     motor.LPF_current_q.Tf = 0.002f; // change these as u wish
     motor.LPF_current_d.Tf = 0.002f;
 
