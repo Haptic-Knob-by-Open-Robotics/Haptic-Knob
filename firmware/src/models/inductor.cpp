@@ -17,6 +17,9 @@ BLDCMotor motor(POLE_PAIRS);
 // Virtual inductance / inertia gain. Bigger -> stronger resistance/feedback torque to acceleration.
 static constexpr float VIRTUAL_INDUCTANCE = 0.020f;
 
+// Velocity damping term that dissipates energy and helps the knob settle.
+static constexpr float DAMPING = 0.020f;
+
 // Motor torque constant Kt
 static constexpr float TORQUE_CONST = 0.035f;
 
@@ -320,8 +323,8 @@ void loop()
         filteredAlpha = 0.0f;
     }
 
-    // torque formula
-    float torqueCmd = -VIRTUAL_INDUCTANCE * filteredAlpha;
+    // Combine acceleration feedback with velocity damping so the system settles instead of hunting.
+    float torqueCmd = -VIRTUAL_INDUCTANCE * filteredAlpha - DAMPING * omega;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
 
     float iqCmd = torqueCmd / TORQUE_CONST;
