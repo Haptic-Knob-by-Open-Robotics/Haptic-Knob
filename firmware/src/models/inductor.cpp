@@ -27,6 +27,11 @@ static constexpr float MAX_CURRENT = 2.0f;
 // Acceleration estimation is noisy, so smooth it with a first-order filter.
 static constexpr float ALPHA_FILTER_TF = 0.015f;
 
+// Deadbands used to suppress encoder noise around zero motion.
+static constexpr float OMEGA_DEADBAND = 0.15f;  // rad/s
+static constexpr float ALPHA_DEADBAND = 8.0f;   // rad/s^2
+static constexpr float IQ_DEADBAND = 0.03f;     // A
+
 // How often to print debug info
 static constexpr uint32_t PRINT_PERIOD_MS = 100;
 
@@ -299,18 +304,32 @@ void loop()
     dt = clampf(dt, 0.0001f, 0.01f);
     // getting alpha
     float omega = encoder.getVelocity();
+    if (fabsf(omega) < OMEGA_DEADBAND)
+    {
+        omega = 0.0f;
+    }
+
     float rawAlpha = (omega - prevOmega) / dt;
     prevOmega = omega;
 
     // first order filter
     float alphaFilterGain = dt / (ALPHA_FILTER_TF + dt);
     filteredAlpha += alphaFilterGain * (rawAlpha - filteredAlpha);
+    if (fabsf(filteredAlpha) < ALPHA_DEADBAND)
+    {
+        filteredAlpha = 0.0f;
+    }
+
     // torque formula
     float torqueCmd = -VIRTUAL_INDUCTANCE * filteredAlpha;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
 
     float iqCmd = torqueCmd / TORQUE_CONST;
     iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
+    if (fabsf(iqCmd) < IQ_DEADBAND)
+    {
+        iqCmd = 0.0f;
+    }
 
     motor.move(iqCmd);
 
