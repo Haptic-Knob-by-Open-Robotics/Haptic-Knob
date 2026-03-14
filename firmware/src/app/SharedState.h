@@ -1,0 +1,84 @@
+#include <Arduino.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "app/Faults.h"
+
+/*
+    This file defines the shared data used by the FreeRTOS tasks.
+
+    Since the firmware is split into multiple tasks, we need one central
+    place to store:
+      - the latest measured motor/shaft state
+      - the latest command requested by the haptic model
+      - the current configuration / active mode / gains
+      - fault flags if something goes wrong
+
+    Typical data stored here:
+      - measured angle
+      - measured velocity
+      - measured acceleration
+      - measured q-axis current / phase currents
+      - desired iq command
+      - desired voltage command
+      - active mode (R/C/L/diode)
+      - gains / thresholds / origin
+      - faulted state
+
+    Access to this data should be protected with a mutex so tasks do not
+    overwrite each other.
+*/
+
+
+enum class HapticMode : uint8_t {
+    Resistor = 0, 
+    Capacitor, 
+    Inductor, Diode
+};
+
+struct MeasuredState
+{
+    float angle_rad = 0.0f;
+    float angle_deg_wrapped = 0.0f;
+    float velocity_rad_s = 0.0f;
+    float acceleration_rad_s2 = 0.0f;
+
+    float iq_meas = 0.0f;
+    float ia = 0.0f;
+    float ib = 0.0f;
+    float ic = 0.0f;
+
+    uint32_t last_update_us = 0;
+};
+
+struct HapticCommand 
+{
+    bool use_voltage_mode = false; 
+    float iq_cmd = 0.0f;
+    float v_cmd = 0.0f; 
+    uint32_t last_update_us = 0; 
+};
+
+struct RuntimeConfig {
+    HapticMode active_mode = HapticMode::Resistor;
+
+    // Resistor params
+    float resistance_gain = 0.001f;
+
+    // Capacitor params
+    float k_virtual = 0.6f;
+    float b_virtual = 0.03f;
+    float theta_origin = 0.0f;
+
+    // Inductor params
+    float virtual_inductance = 0.020f;
+
+    // Diode params
+    float diode_threshold = 0.1f;
+    float diode_gain = 2.0f;
+}
+
+extern MeasuredState g_measured_state;
+extern  g_haptic_command;
+extern RuntimeConfig g_runtime_config; 
+
+void initSharedState(); 

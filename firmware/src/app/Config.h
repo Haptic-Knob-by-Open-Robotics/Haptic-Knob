@@ -1,5 +1,13 @@
-// Pins definition
-
+/*
+    Store fixed compile-time constants here:
+        - pin assignments 
+        - voltage limits 
+        - motor constants
+        - shunt / amplifier constants 
+        - SPI pins 
+        - ADC reference voltage 
+        - default gains 
+*/
 #define PIN_UL 4
 #define PIN_UH 5
 #define PIN_VL 6

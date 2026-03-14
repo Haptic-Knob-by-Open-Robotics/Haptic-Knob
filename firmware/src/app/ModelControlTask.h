@@ -1,2 +1,8 @@
-#pragma once
-void ModelControlTask(void* arg); 
+/*
+    ModelControlTask.h
+
+    This file declares the haptic model task.
+
+    This task is responsible for computing the virtual behavior that the user
+    should feel through the knob.
+*/
