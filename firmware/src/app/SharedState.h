@@ -54,7 +54,6 @@ struct MeasuredState
 struct HapticCommand 
 {
     float iq_cmd = 0.0f;
-    float v_cmd = 0.0f; 
     uint32_t last_update_us = 0; 
 };
 
