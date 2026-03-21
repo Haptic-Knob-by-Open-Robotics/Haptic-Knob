@@ -36,6 +36,10 @@
     - call motor.move()
 */
 
+static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
+static constexpr float MAX_TORQUE   = 0.12f;
+static constexpr float MAX_CURRENT  = 2.0f;
+
 
 static float clampf(float val, float minVal, float maxVal)
 {
@@ -51,11 +55,11 @@ void computeResistorCommand(const MeasuredState& measured,
     // TODO:
     // 1. compute torque opposing velocity
     float torqueCmd = -config.resistance_gain * measured.velocity_rad_s;
-    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
     // 2. convert torque -> iq_cmd
-    float iqCmd = torqueCmd / config.TORQUE_CONST;
+    float iqCmd = torqueCmd / TORQUE_CONST;
     // 3. clamp current
-    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
+    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
     // 4. set use_voltage_mode = false
     command.use_voltage_mode = false;
     command.iq_cmd = iqCmd;
@@ -63,6 +67,11 @@ void computeResistorCommand(const MeasuredState& measured,
     command.last_update_us = micros();
 }
 
+// Capacitor model parameters
+static float K_virtual = 0.6f;   // stiffness
+static float B_virtual = 0.03f;  // damping
+
+static float theta_origin = 0.0f; // unwrapped equilibrium position
 
 void computeCapacitorCommand(const MeasuredState& measured,
                              const RuntimeConfig& config,
@@ -74,37 +83,15 @@ void computeCapacitorCommand(const MeasuredState& measured,
     // 3. convert torque -> iq_cmd
     // 4. clamp current
 
-    // Read measured state
-    float theta = measured.angle_rad;
-    float omega = measured.velocity_rad_s;
-
-    // velocity deadband
     if (fabsf(omega) < 0.15f)
-    {
         omega = 0.0f;
-    }
+    // virtual capacitor model
+    float displacement = theta - theta_origin;
 
-    // Compute displacement from virtual equilibrium
-    float displacement = theta - config.theta_origin;
+    float torqueCmd = -K_virtual * displacement - B_virtual * omega;
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
 
-    // Spring-damper torque
-    float torqueCmd = -config.K_virtual * displacement
-                      -config.B_virtual * omega;
-
-    // Clamp torque to actuator limit
-    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
-
-    // Convert torque to q-axis current
-    float iqCmd = torqueCmd / config.TORQUE_CONST;
-
-    // Clamp current
-    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
-
-    //Output command
-    command.use_voltage_mode = false;
-    command.iq_cmd = iqCmd;
-    command.v_cmd = 0.0f;
-    command.last_update_us = micros();
+    float iqCmd = clampf(torqueCmd / TORQUE_CONST, -MAX_CURRENT, MAX_CURRENT);
 }
 
 void computeInductorCommand(const MeasuredState& measured,
@@ -116,24 +103,24 @@ void computeInductorCommand(const MeasuredState& measured,
     float alpha = measured.acceleration_rad_s2;
     float omega = measured.velocity_rad_s;
     // Deadband
-    if (fabsf(alpha) < config.ALPHA_DEADBAND)
+    if (fabsf(alpha) < ALPHA_DEADBAND)
     {
         alpha = 0.0f;
     }
 
-    if (fabsf(omega) < config.OMEGA_DEADBAND)
+    if (fabsf(omega) < OMEGA_DEADBAND)
     {
         omega = 0.0f;
     }
     // 2. compute inertial / inductive torque
-    float torqueCmd = -config.virtual_inductance *alpha - config.INDUCTOR_DAMPING * omega;
-    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
+    float torqueCmd = -config.virtual_inductance *alpha - INDUCTOR_DAMPING * omega;
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
     // 3. convert torque -> iq_cmd
-    float iqCmd = torqueCmd / config.TORQUE_CONST;
+    float iqCmd = torqueCmd / TORQUE_CONST;
     // 4. clamp current
-    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
+    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
 
-    if (fabsf(iqCmd) < config.IQ_DEADBAND)
+    if (fabsf(iqCmd) < IQ_DEADBAND)
     {
         iqCmd = 0.0f;
     }
@@ -151,6 +138,7 @@ void computeDiodeCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. apply asymmetric direction logic
+<<<<<<< HEAD
     float torqueCmd = 0.0f;
 
     if (measured.velocity_rad_s > config.diode_threshold)
@@ -167,6 +155,11 @@ void computeDiodeCommand(const MeasuredState& measured,
     command.iq_cmd = iqCmd;
     command.v_cmd = 0.0f;
     command.last_update_us = micros();
+=======
+    // 2. compute voltage command
+    // 3. clamp voltage
+    // 4. set use_voltage_mode = true
+>>>>>>> refs/remotes/origin/main
 }
 
 void computeRLCCommand(const MeasuredState& measured,
