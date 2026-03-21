@@ -48,9 +48,17 @@ void computeResistorCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. compute torque opposing velocity
+    float torqueCmd = -config.resistance_gain * measured.velocity_rad_s;
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
     // 2. convert torque -> iq_cmd
+    float iqCmd = torqueCmd / TORQUE_CONST;
     // 3. clamp current
+    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
     // 4. set use_voltage_mode = false
+    command.use_voltage_mode = false;
+    command.iq_cmd = iqCmd;
+    command.v_cmd = 0.0f;
+    command.last_update_us = micros();
 }
 
 void computeCapacitorCommand(const MeasuredState& measured,
