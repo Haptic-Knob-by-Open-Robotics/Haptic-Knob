@@ -1,4 +1,5 @@
 #include "control/HapticModels.h"
+#include "app/SharedState.h"
 #include <Arduino.h>
 
 /*
@@ -73,7 +74,6 @@ void computeCapacitorCommand(const MeasuredState& measured,
     // 2. compute spring/damper torque
     // 3. convert torque -> iq_cmd
     // 4. clamp current
-    // 5. set use_voltage_mode = false
 
     if (fabsf(omega) < 0.15f)
         omega = 0.0f;
@@ -135,16 +135,39 @@ void computeDiodeCommand(const MeasuredState& measured,
     // 4. set use_voltage_mode = true
 }
 
+void computeRLCCommand(const MeasuredState& measured,
+                         const RuntimeConfig& config,
+                         HapticCommand& command)
+{
+    // TODO:
+    // 1. apply asymmetric direction logic
+    // 2. compute voltage command
+    // 3. clamp voltage
+    // 4. set use_voltage_mode = true
+}
+
 void computeActiveModelCommand(const MeasuredState& measured,
                                const RuntimeConfig& config,
                                HapticCommand& command)
 {
-    // TODO:
-    // switch(config.active_mode)
-    // {
-    //   case HapticMode::Resistor:  ...
-    //   case HapticMode::Capacitor: ...
-    //   case HapticMode::Inductor:  ...
-    //   case HapticMode::Diode:     ...
-    // }
+    switch(config.active_mode)
+    {
+        case HapticMode::Resistor:
+            computeResistorCommand(measured, config, command);
+            break;
+        case HapticMode::Capacitor:
+            computeCapacitorCommand(measured, config, command);
+            break;
+        case HapticMode::Inductor:
+            computeInductorCommand(measured, config, command);
+            break;
+        case HapticMode::Diode:
+            computeDiodeCommand(measured, config, command);
+            break;
+        case HapticMode::RLC:
+            computeRLCCommand(measured, config, command);
+            break;
+        default:
+            break;
+    }
 }

@@ -32,7 +32,7 @@
 enum class HapticMode : uint8_t {
     Resistor = 0, 
     Capacitor, 
-    Inductor, Diode
+    Inductor, Diode, RLC
 };
 
 struct MeasuredState

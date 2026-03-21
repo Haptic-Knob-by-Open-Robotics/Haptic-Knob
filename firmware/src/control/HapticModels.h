@@ -40,6 +40,10 @@ void computeDiodeCommand(const MeasuredState& measured,
                          const RuntimeConfig& config,
                          HapticCommand& command);
 
+void computeRLCCommand(const MeasuredState& measured,
+                         const RuntimeConfig& config,
+                         HapticCommand& command);
+
 /*
     Convenience dispatcher:
     picks the correct model based on active_mode.
