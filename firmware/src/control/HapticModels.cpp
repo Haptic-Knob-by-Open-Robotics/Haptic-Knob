@@ -35,6 +35,11 @@
     - call motor.move()
 */
 
+static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
+static constexpr float MAX_TORQUE   = 0.12f;
+static constexpr float MAX_CURRENT  = 2.0f;
+
+
 static float clampf(float val, float minVal, float maxVal)
 {
     if (val < minVal) return minVal;
@@ -60,6 +65,12 @@ void computeResistorCommand(const MeasuredState& measured,
     command.v_cmd = 0.0f;
     command.last_update_us = micros();
 }
+
+// Capacitor model parameters
+static float K_virtual = 0.6f;   // stiffness
+static float B_virtual = 0.03f;  // damping
+
+static float theta_origin = 0.0f; // unwrapped equilibrium position
 
 void computeCapacitorCommand(const MeasuredState& measured,
                              const RuntimeConfig& config,
