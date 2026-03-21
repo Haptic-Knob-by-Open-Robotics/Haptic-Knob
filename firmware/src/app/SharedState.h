@@ -70,8 +70,8 @@ struct RuntimeConfig {
     float resistance_gain = 0.001f;
 
     // Capacitor params
-    float k_virtual = 0.6f;
-    float b_virtual = 0.03f;
+    float K_virtual = 0.6f;
+    float B_virtual = 0.03f;
     float theta_origin = 0.0f;
 
     // Inductor params

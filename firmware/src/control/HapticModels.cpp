@@ -63,11 +63,6 @@ void computeResistorCommand(const MeasuredState& measured,
     command.last_update_us = micros();
 }
 
-// Capacitor model parameters
-static float K_virtual = 0.6f;   // stiffness
-static float B_virtual = 0.03f;  // damping
-
-static float theta_origin = 0.0f; // unwrapped equilibrium position
 
 void computeCapacitorCommand(const MeasuredState& measured,
                              const RuntimeConfig& config,
@@ -79,15 +74,37 @@ void computeCapacitorCommand(const MeasuredState& measured,
     // 3. convert torque -> iq_cmd
     // 4. clamp current
 
-    if (fabsf(omega) < 0.15f)
-        omega = 0.0f;
-    // virtual capacitor model
-    float displacement = theta - theta_origin;
+    // Read measured state
+    float theta = measured.angle_rad;
+    float omega = measured.velocity_rad_s;
 
-    float torqueCmd = -K_virtual * displacement - B_virtual * omega;
+    // velocity deadband
+    if (fabsf(omega) < 0.15f)
+    {
+        omega = 0.0f;
+    }
+
+    // Compute displacement from virtual equilibrium
+    float displacement = theta - config.theta_origin;
+
+    // Spring-damper torque
+    float torqueCmd = -config.K_virtual * displacement
+                      -config.B_virtual * omega;
+
+    // Clamp torque to actuator limit
     torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
 
-    float iqCmd = clampf(torqueCmd / config.TORQUE_CONST, -config.MAX_CURRENT, config.MAX_CURRENT);
+    // Convert torque to q-axis current
+    float iqCmd = torqueCmd / config.TORQUE_CONST;
+
+    // Clamp current
+    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
+
+    //Output command
+    command.use_voltage_mode = false;
+    command.iq_cmd = iqCmd;
+    command.v_cmd = 0.0f;
+    command.last_update_us = micros();
 }
 
 void computeInductorCommand(const MeasuredState& measured,
