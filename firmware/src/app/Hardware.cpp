@@ -104,8 +104,7 @@ float getMeasuredIq()
 PhaseCurrent_s getPhaseCurrents()
 {
     // TODO: if using external ADC, return converted phase currents here
-    PhaseCurrent_s currents{};
-    return currents;
+    return current_sense.getPhaseCurrents();
 }
 
 void setCurrentPidGains(float qp, float qi, float qd,
@@ -131,10 +130,46 @@ static bool setupMotor()
 {
     // TODO:
     // - link driver
+    motor.linkDriver(&driver);
     // - link encoder
+    motor.linkSensor(&encoder);
+    // -link currentSense
+    motor.linkCurrentSense(&current_sense);
     // - configure torque control mode
+    motor.controller = MotionControlType::torque;
+    motor.torque_controller = TorqueControlType::foc_current;
     // - configure limits
+    motor.voltage_limit = VOLTAGE_LIMIT;
+    motor.current_limit = CURRENT_LIMIT; 
+//values will be changed to variables
+    motor.PID_current_q.P = 2.0f;
+    motor.PID_current_q.I = 200.0f;
+    motor.PID_current_q.D = 0.0f;
+    motor.PID_current_q.limit = VOLTAGE_LIMIT;
+
+    motor.PID_current_d.P = 2.0f;
+    motor.PID_current_d.I = 200.0f;
+    motor.PID_current_d.D = 0.0f;
+    motor.PID_current_d.limit = VOLTAGE_LIMIT;
+
+    // filter measured current noise a bit
+    motor.LPF_current_q.Tf = 0.002f;
+    motor.LPF_current_d.Tf = 0.002f;
     // - init motor
+    Serial.print("Initializing motor object  ");
+    if (!motor.init())
+    {
+        Serial.println("FAILED");
+        return false;
+    }
     // - initFOC
+    Serial.print("Initializing FOC  ");
+    if (!motor.initFOC())
+    {
+        Serial.println("FAILED");
+        return false;
+    }
+
+    Serial.println("SUCCESSFUL Motor & FOC initialization");
     return true;
 }
