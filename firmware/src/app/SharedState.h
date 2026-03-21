@@ -57,6 +57,19 @@ struct HapticCommand
     uint32_t last_update_us = 0; 
 };
 
+struct PIDGains
+{
+    float P = 0.0f;
+    float I = 0.0f;
+    float D = 0.0f;
+};
+
+struct CurrentLoopPID
+{
+    PIDGains q;   // q-axis current loop PID
+    PIDGains d;   // d-axis current loop PID
+};
+
 struct RuntimeConfig {
   
     HapticMode active_mode = HapticMode::Resistor;
@@ -65,6 +78,33 @@ struct RuntimeConfig {
     static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
     static constexpr float MAX_TORQUE   = 0.12f;
     static constexpr float MAX_CURRENT  = 2.0f;
+    
+    // PID gains for haptic model
+    CurrentLoopPID resistor_pid = {
+        {3.0f, 300.0f, 0.0f},   // q-axis
+        {3.0f, 300.0f, 0.0f}    // d-axis
+    };
+
+    CurrentLoopPID capacitor_pid = {
+        {3.0f, 300.0f, 0.0f},
+        {3.0f, 300.0f, 0.0f}
+    };
+
+    CurrentLoopPID inductor_pid = {
+        {3.0f, 300.0f, 0.0f},
+        {3.0f, 300.0f, 0.0f}
+    };
+
+    CurrentLoopPID diode_pid = {
+        {3.0f, 300.0f, 0.0f},
+        {3.0f, 300.0f, 0.0f}
+    };
+
+    CurrentLoopPID rlc_pid = {
+        {3.0f, 300.0f, 0.0f},
+        {3.0f, 300.0f, 0.0f}
+    };
+
     
     // Resistor params
     float resistance_gain = 0.001f;
@@ -110,7 +150,6 @@ struct SystemState{
 };
 
 extern MeasuredState g_measured_state;
-extern HapticCommand g_haptic_command;
 extern HapticCommand g_haptic_command;
 extern RuntimeConfig g_runtime_config; 
 extern SystemState g_system_state; 
