@@ -36,6 +36,10 @@
     - call motor.move()
 */
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 static float clampf(float val, float minVal, float maxVal)
 {
     if (val < minVal) return minVal;
@@ -55,10 +59,19 @@ void computeResistorCommand(const MeasuredState& measured,
     float iqCmd = torqueCmd / config.TORQUE_CONST;
     // 3. clamp current
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
+<<<<<<< Updated upstream
+=======
+    // 4. set use_voltage_mode = false
+    command.use_voltage_mode = false;
+>>>>>>> Stashed changes
     command.iq_cmd = iqCmd;
     command.last_update_us = micros();
 }
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 void computeCapacitorCommand(const MeasuredState& measured,
                              const RuntimeConfig& config,
                              HapticCommand& command)
@@ -73,7 +86,11 @@ void computeCapacitorCommand(const MeasuredState& measured,
     float theta = measured.angle_rad;
     float omega = measured.velocity_rad_s;
 
+<<<<<<< Updated upstream
     // Velocity deadband
+=======
+    // velocity deadband
+>>>>>>> Stashed changes
     if (fabsf(omega) < 0.15f)
     {
         omega = 0.0f;
@@ -83,8 +100,13 @@ void computeCapacitorCommand(const MeasuredState& measured,
     float displacement = theta - config.theta_origin;
 
     // Spring-damper torque
+<<<<<<< Updated upstream
     float torqueCmd = -config.k_virtual * displacement
                       -config.b_virtual * omega;
+=======
+    float torqueCmd = -config.K_virtual * displacement
+                      -config.B_virtual * omega;
+>>>>>>> Stashed changes
 
     // Clamp torque to actuator limit
     torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
@@ -95,7 +117,14 @@ void computeCapacitorCommand(const MeasuredState& measured,
     // Clamp current
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
 
+<<<<<<< Updated upstream
     command.iq_cmd = iqCmd;
+=======
+    //Output command
+    command.use_voltage_mode = false;
+    command.iq_cmd = iqCmd;
+    command.v_cmd = 0.0f;
+>>>>>>> Stashed changes
     command.last_update_us = micros();
 }
 
@@ -140,6 +169,7 @@ void computeDiodeCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. apply asymmetric direction logic
+<<<<<<< Updated upstream
     float torqueCmd = 0.0f;
 
     if (measured.velocity_rad_s > config.diode_threshold)
@@ -152,6 +182,19 @@ void computeDiodeCommand(const MeasuredState& measured,
     // 3. clamp c
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
     command.iq_cmd = iqCmd;
+=======
+    float vCmd = 0.0f;
+    if (measured.velocity_rad_s >config.diode_threshold){
+        vCmd = -config.diode_gain * measured.velocity_rad_s;
+    }
+    // 2. compute voltage command
+    // 3. clamp voltage
+     vCmd = clampf(vCmd, -MAX_VOLTAGE, 0.0f);
+    // 4. set use_voltage_mode = true
+    command.use_voltage_mode = true;
+    command.iq_cmd = 0.0f;
+    command.v_cmd = vCmd;
+>>>>>>> Stashed changes
     command.last_update_us = micros();
 }
 

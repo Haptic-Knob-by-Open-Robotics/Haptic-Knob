@@ -78,6 +78,7 @@ struct RuntimeConfig {
     static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
     static constexpr float MAX_TORQUE   = 0.12f;
     static constexpr float MAX_CURRENT  = 2.0f;
+<<<<<<< Updated upstream
     
     // PID gains for haptic model
     CurrentLoopPID resistor_pid = {
@@ -106,6 +107,9 @@ struct RuntimeConfig {
     };
 
     
+=======
+
+>>>>>>> Stashed changes
     // Resistor params
     float resistance_gain = 0.001f;
 

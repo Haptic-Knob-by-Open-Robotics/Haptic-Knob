@@ -23,7 +23,8 @@
   MAIN FOR NOW: 
   - ControlTask: The main real-time task. It runs the fast motor/control loop every cycle and runs
                   the slower haptic model update every N cycles using a deterministic counter 
-  - TelemetryTask: Handles serial prints, debug output, and optimal command parsing.
+  - TelemetryTask: Handles user input through serial, collects runtime configuration, prints debug/telemtry data, 
+                  and enables control when the system is ready to start the trial 
 
   - WatchdogTask: Monitors task health, stale data, timing faults, and safety conditions. 
 
@@ -57,12 +58,13 @@ void setup()
     }
   }
 
+  // Start telemtry task 
+  startTelemetryTask(); 
+
   // Create the main deterministic control task, note that we give this the highest priority since it owns the 
   // real time motor/control path 
   startControlTask(); 
 
-  // Start telemtry task 
-  startTelemetryTask(); 
 
   // Start the watchdog/safety monitoring task
   startWatchdogTask
