@@ -52,7 +52,6 @@ struct MeasuredState
 
 struct HapticCommand 
 {
-    bool use_voltage_mode = false; 
     float iq_cmd = 0.0f;
     float v_cmd = 0.0f; 
     uint32_t last_update_us = 0; 
@@ -80,9 +79,20 @@ struct RuntimeConfig {
     float OMEGA_DEADBAND = 0.0f;
     float IQ_DEADBAND = 0.0f;
     float INDUCTOR_DAMPING = 0.0f;
+
+
     // Diode params
     float diode_threshold = 0.1f;
     float diode_gain = 2.0f;
+
+    // RLC params
+    //float OMEGA_DEADBAND = 0.15f;
+    float MAX_STATE_ABS = 20.0f;
+    float INPUT_GAIN = 1.0f;
+    float TORQUE_GAIN = 0.020f;
+
+    float virtual_resistance =0.5f;
+    float virtual_capacitance = 0.30f;
 };
 
 extern MeasuredState g_measured_state;

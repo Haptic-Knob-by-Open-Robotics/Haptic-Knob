@@ -56,8 +56,6 @@ void computeResistorCommand(const MeasuredState& measured,
     float iqCmd = torqueCmd / config.TORQUE_CONST;
     // 3. clamp current
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
-    // 4. set use_voltage_mode = false
-    command.use_voltage_mode = false;
     command.iq_cmd = iqCmd;
     command.v_cmd = 0.0f;
     command.last_update_us = micros();
@@ -101,7 +99,6 @@ void computeCapacitorCommand(const MeasuredState& measured,
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
 
     //Output command
-    command.use_voltage_mode = false;
     command.iq_cmd = iqCmd;
     command.v_cmd = 0.0f;
     command.last_update_us = micros();
@@ -137,8 +134,6 @@ void computeInductorCommand(const MeasuredState& measured,
     {
         iqCmd = 0.0f;
     }
-    // 5. set use_voltage_mode = false
-    command.use_voltage_mode = false;
     command.iq_cmd = iqCmd;
     command.v_cmd = 0.0f;
     command.last_update_us = micros();
@@ -153,7 +148,7 @@ void computeDiodeCommand(const MeasuredState& measured,
     // 1. apply asymmetric direction logic
     // 2. compute voltage command
     // 3. clamp voltage
-    // 4. set use_voltage_mode = true
+
 }
 
 void computeRLCCommand(const MeasuredState& measured,
@@ -164,7 +159,69 @@ void computeRLCCommand(const MeasuredState& measured,
     // 1. apply asymmetric direction logic
     // 2. compute voltage command
     // 3. clamp voltage
-    // 4. set use_voltage_mode = true
+
+    // Virtual circuit states
+    static float i_virtual  = 0.0f;   // virtual circuit current
+    static float vc_virtual = 0.0f;   // virtual capacitor voltage
+    static uint32_t lastModelUpdateUs = 0;
+
+    // Compute dt from measured timestamp
+    uint32_t nowUs = measured.last_update_us;
+    float dt = 0.001f; //  default
+
+    if (lastModelUpdateUs != 0 && nowUs > lastModelUpdateUs)
+    {
+        dt = (nowUs - lastModelUpdateUs) * 1e-6f;
+    }
+    lastModelUpdateUs = nowUs;
+
+    // Guard dt against bad jumps
+    dt = clampf(dt, 0.0001f, 0.005f);
+
+    // Read velocity input
+    float omega = measured.velocity_rad_s;
+    if (fabsf(omega) < config.OMEGA_DEADBAND)
+    {
+        omega = 0.0f;
+    }
+
+    // Map shaft velocity to virtual source voltage
+    float vin = config.INPUT_GAIN * omega;
+
+    // Read virtual RLC parameters from config
+    float R = config.virtual_resistance;     
+    float L = config.virtual_inductance;   
+    float C = config.virtual_capacitance;
+
+    // Prevent divide-by-zero / unstable params
+    R = fmaxf(R, 0.0001f);
+    L = fmaxf(L, 0.0001f);
+
+    //    Virtual series RLC state equations
+    //    di/dt  = (vin - R*i - vc) / L
+    //    dvc/dt = i / C
+    float di_dt  = (vin - R * i_virtual - vc_virtual) / L;
+    float dvc_dt = i_virtual / C;
+
+    i_virtual  += di_dt * dt;
+    vc_virtual += dvc_dt * dt;
+
+    // Clamp virtual states for robustness
+    i_virtual  = clampf(i_virtual,  -config.MAX_STATE_ABS, config.MAX_STATE_ABS);
+    vc_virtual = clampf(vc_virtual, -config.MAX_STATE_ABS, config.MAX_STATE_ABS);
+
+    // Map virtual current to motor torque
+    float torqueCmd = -config.TORQUE_GAIN * i_virtual;
+    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
+
+    // Convert torque to q-axis current
+    float iqCmd = torqueCmd / config.TORQUE_CONST;
+    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
+
+    // Fill output command
+    command.iq_cmd = iqCmd;
+    command.v_cmd = 0.0f;
+    command.last_update_us = micros();
 }
 
 void computeActiveModelCommand(const MeasuredState& measured,
