@@ -32,7 +32,8 @@
 enum class HapticMode : uint8_t {
     Resistor = 0, 
     Capacitor, 
-    Inductor, Diode
+    Inductor, 
+    Diode
 };
 
 struct MeasuredState
@@ -75,10 +76,11 @@ struct RuntimeConfig {
     // Diode params
     float diode_threshold = 0.1f;
     float diode_gain = 2.0f;
-}
+};
 
 extern MeasuredState g_measured_state;
-extern  g_haptic_command;
+extern HapticCommand g_haptic_command;
 extern RuntimeConfig g_runtime_config; 
+extern SemaphoreHandle_t g_state_mutex; 
 
 void initSharedState(); 
