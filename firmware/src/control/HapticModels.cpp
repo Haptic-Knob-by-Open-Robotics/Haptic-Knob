@@ -138,7 +138,6 @@ void computeDiodeCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. apply asymmetric direction logic
-<<<<<<< HEAD
     float torqueCmd = 0.0f;
 
     if (measured.velocity_rad_s > config.diode_threshold)
@@ -155,11 +154,6 @@ void computeDiodeCommand(const MeasuredState& measured,
     command.iq_cmd = iqCmd;
     command.v_cmd = 0.0f;
     command.last_update_us = micros();
-=======
-    // 2. compute voltage command
-    // 3. clamp voltage
-    // 4. set use_voltage_mode = true
->>>>>>> refs/remotes/origin/main
 }
 
 void computeRLCCommand(const MeasuredState& measured,
