@@ -35,10 +35,11 @@
     - call motor.move()
 */
 
-static float clampf(float x, float lo, float hi)
+static float clampf(float val, float minVal, float maxVal)
 {
-    // TODO: clamp helper
-    return x;
+    if (val < minVal) return minVal;
+    if (val > maxVal) return maxVal;
+    return val;
 }
 
 void computeResistorCommand(const MeasuredState& measured,
@@ -62,6 +63,16 @@ void computeCapacitorCommand(const MeasuredState& measured,
     // 3. convert torque -> iq_cmd
     // 4. clamp current
     // 5. set use_voltage_mode = false
+
+    if (fabsf(omega) < 0.15f)
+        omega = 0.0f;
+    // virtual capacitor model
+    float displacement = theta - theta_origin;
+
+    float torqueCmd = -K_virtual * displacement - B_virtual * omega;
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
+
+    float iqCmd = clampf(torqueCmd / TORQUE_CONST, -MAX_CURRENT, MAX_CURRENT);
 }
 
 void computeInductorCommand(const MeasuredState& measured,
