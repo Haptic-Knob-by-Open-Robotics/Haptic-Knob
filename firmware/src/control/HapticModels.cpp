@@ -151,9 +151,18 @@ void computeDiodeCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. apply asymmetric direction logic
+    float vCmd = 0.0f;
+    if (measured.velocity_rad_s >config.diode_threshold){
+        vCmd = -config.diode_gain * measured.velocity_rad_s;
+    }
     // 2. compute voltage command
     // 3. clamp voltage
+     vCmd = clampf(vCmd, -MAX_VOLTAGE, 0.0f);
     // 4. set use_voltage_mode = true
+    command.use_voltage_mode = true;
+    command.iq_cmd = 0.0f;
+    command.v_cmd = vCmd;
+    command.last_update_us = micros();
 }
 
 void computeRLCCommand(const MeasuredState& measured,
