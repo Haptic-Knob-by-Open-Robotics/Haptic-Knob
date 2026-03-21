@@ -1,4 +1,5 @@
 #include "control/HapticModels.h"
+#include "app/SharedState.h"
 #include <Arduino.h>
 
 /*
@@ -35,6 +36,11 @@
     - call motor.move()
 */
 
+static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
+static constexpr float MAX_TORQUE   = 0.12f;
+static constexpr float MAX_CURRENT  = 2.0f;
+
+
 static float clampf(float val, float minVal, float maxVal)
 {
     if (val < minVal) return minVal;
@@ -48,10 +54,24 @@ void computeResistorCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. compute torque opposing velocity
+    float torqueCmd = -config.resistance_gain * measured.velocity_rad_s;
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
     // 2. convert torque -> iq_cmd
+    float iqCmd = torqueCmd / TORQUE_CONST;
     // 3. clamp current
+    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
     // 4. set use_voltage_mode = false
+    command.use_voltage_mode = false;
+    command.iq_cmd = iqCmd;
+    command.v_cmd = 0.0f;
+    command.last_update_us = micros();
 }
+
+// Capacitor model parameters
+static float K_virtual = 0.6f;   // stiffness
+static float B_virtual = 0.03f;  // damping
+
+static float theta_origin = 0.0f; // unwrapped equilibrium position
 
 void computeCapacitorCommand(const MeasuredState& measured,
                              const RuntimeConfig& config,
@@ -62,7 +82,6 @@ void computeCapacitorCommand(const MeasuredState& measured,
     // 2. compute spring/damper torque
     // 3. convert torque -> iq_cmd
     // 4. clamp current
-    // 5. set use_voltage_mode = false
 
     if (fabsf(omega) < 0.15f)
         omega = 0.0f;
@@ -124,16 +143,39 @@ void computeDiodeCommand(const MeasuredState& measured,
     // 4. set use_voltage_mode = true
 }
 
+void computeRLCCommand(const MeasuredState& measured,
+                         const RuntimeConfig& config,
+                         HapticCommand& command)
+{
+    // TODO:
+    // 1. apply asymmetric direction logic
+    // 2. compute voltage command
+    // 3. clamp voltage
+    // 4. set use_voltage_mode = true
+}
+
 void computeActiveModelCommand(const MeasuredState& measured,
                                const RuntimeConfig& config,
                                HapticCommand& command)
 {
-    // TODO:
-    // switch(config.active_mode)
-    // {
-    //   case HapticMode::Resistor:  ...
-    //   case HapticMode::Capacitor: ...
-    //   case HapticMode::Inductor:  ...
-    //   case HapticMode::Diode:     ...
-    // }
+    switch(config.active_mode)
+    {
+        case HapticMode::Resistor:
+            computeResistorCommand(measured, config, command);
+            break;
+        case HapticMode::Capacitor:
+            computeCapacitorCommand(measured, config, command);
+            break;
+        case HapticMode::Inductor:
+            computeInductorCommand(measured, config, command);
+            break;
+        case HapticMode::Diode:
+            computeDiodeCommand(measured, config, command);
+            break;
+        case HapticMode::RLC:
+            computeRLCCommand(measured, config, command);
+            break;
+        default:
+            break;
+    }
 }

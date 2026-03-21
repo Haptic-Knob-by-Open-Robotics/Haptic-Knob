@@ -32,9 +32,9 @@
 enum class HapticMode : uint8_t {
     Resistor = 0, 
     Capacitor, 
-    Inductor, 
-    Diode
+    Inductor, Diode, RLC
 };
+
 
 struct MeasuredState
 {
@@ -62,10 +62,11 @@ struct HapticCommand
 struct RuntimeConfig {
     HapticMode active_mode = HapticMode::Resistor;
 
+
     // Resistor params
     float resistance_gain = 0.001f;
 
-    // Capacitor params
+    // Capacitor / spring-damper params 
     float k_virtual = 0.6f;
     float b_virtual = 0.03f;
     float theta_origin = 0.0f;
@@ -78,9 +79,23 @@ struct RuntimeConfig {
     float diode_gain = 2.0f;
 };
 
+struct SystemState{
+
+    bool control_enabled = false;
+    bool trial_configured = false; 
+    bool trial_active = false; 
+
+    bool fault_latched = false; 
+    uint32_t fault_bits = 0; 
+
+    uint32_t control_last_heartbeat_us = 0; 
+    uint32_t telemetry_last_heartbeat_us = 0; 
+}
+
 extern MeasuredState g_measured_state;
 extern HapticCommand g_haptic_command;
 extern RuntimeConfig g_runtime_config; 
+extern SystemState g_system_state; 
 extern SemaphoreHandle_t g_state_mutex; 
 
 void initSharedState(); 
