@@ -59,6 +59,11 @@ struct HapticCommand
 };
 
 struct RuntimeConfig {
+  
+    // Global params
+    static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
+    static constexpr float MAX_TORQUE   = 0.12f;
+    static constexpr float MAX_CURRENT  = 2.0f;
     HapticMode active_mode = HapticMode::Resistor;
 
     // Resistor params
@@ -71,14 +76,17 @@ struct RuntimeConfig {
 
     // Inductor params
     float virtual_inductance = 0.020f;
-
+    float ALPHA_DEADBAND = 0.0f;
+    float OMEGA_DEADBAND = 0.0f;
+    float IQ_DEADBAND = 0.0f;
+    float INDUCTOR_DAMPING = 0.0f;
     // Diode params
     float diode_threshold = 0.1f;
     float diode_gain = 2.0f;
-}
+};
 
 extern MeasuredState g_measured_state;
-extern  g_haptic_command;
+extern HapticCommand g_haptic_command;
 extern RuntimeConfig g_runtime_config; 
 
 void initSharedState(); 

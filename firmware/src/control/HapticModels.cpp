@@ -36,10 +36,6 @@
     - call motor.move()
 */
 
-static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
-static constexpr float MAX_TORQUE   = 0.12f;
-static constexpr float MAX_CURRENT  = 2.0f;
-
 
 static float clampf(float val, float minVal, float maxVal)
 {
@@ -55,11 +51,11 @@ void computeResistorCommand(const MeasuredState& measured,
     // TODO:
     // 1. compute torque opposing velocity
     float torqueCmd = -config.resistance_gain * measured.velocity_rad_s;
-    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
+    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
     // 2. convert torque -> iq_cmd
-    float iqCmd = torqueCmd / TORQUE_CONST;
+    float iqCmd = torqueCmd / config.TORQUE_CONST;
     // 3. clamp current
-    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
+    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
     // 4. set use_voltage_mode = false
     command.use_voltage_mode = false;
     command.iq_cmd = iqCmd;
@@ -89,9 +85,9 @@ void computeCapacitorCommand(const MeasuredState& measured,
     float displacement = theta - theta_origin;
 
     float torqueCmd = -K_virtual * displacement - B_virtual * omega;
-    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
+    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
 
-    float iqCmd = clampf(torqueCmd / TORQUE_CONST, -MAX_CURRENT, MAX_CURRENT);
+    float iqCmd = clampf(torqueCmd / config.TORQUE_CONST, -config.MAX_CURRENT, config.MAX_CURRENT);
 }
 
 void computeInductorCommand(const MeasuredState& measured,
@@ -103,24 +99,24 @@ void computeInductorCommand(const MeasuredState& measured,
     float alpha = measured.acceleration_rad_s2;
     float omega = measured.velocity_rad_s;
     // Deadband
-    if (fabsf(alpha) < ALPHA_DEADBAND)
+    if (fabsf(alpha) < config.ALPHA_DEADBAND)
     {
         alpha = 0.0f;
     }
 
-    if (fabsf(omega) < OMEGA_DEADBAND)
+    if (fabsf(omega) < config.OMEGA_DEADBAND)
     {
         omega = 0.0f;
     }
     // 2. compute inertial / inductive torque
-    float torqueCmd = -config.virtual_inductance *alpha - INDUCTOR_DAMPING * omega;
-    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
+    float torqueCmd = -config.virtual_inductance *alpha - config.INDUCTOR_DAMPING * omega;
+    torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
     // 3. convert torque -> iq_cmd
-    float iqCmd = torqueCmd / TORQUE_CONST;
+    float iqCmd = torqueCmd / config.TORQUE_CONST;
     // 4. clamp current
-    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
+    iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
 
-    if (fabsf(iqCmd) < IQ_DEADBAND)
+    if (fabsf(iqCmd) < config.IQ_DEADBAND)
     {
         iqCmd = 0.0f;
     }
