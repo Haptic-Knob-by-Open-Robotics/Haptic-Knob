@@ -15,11 +15,9 @@
 MeasuredState g_measured_state;
 HapticCommand g_haptic_command;
 RuntimeConfig g_runtime_config;
+SemaphoreHandle_t g_state_mutex = nullptr; 
 
 void initSharedState()
 {
-    // TODO: create the mutex
-    // g_state_mutex = xSemaphoreCreateMutex();
-
-    // TODO: initialize any runtime defaults if needed
+    g_state_mutex = xSemaphoreCreateMutex();
 }
