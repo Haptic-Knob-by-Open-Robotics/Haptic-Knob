@@ -1,6 +1,4 @@
 /*
-    Faults.h
-
     This file defines the fault states used by the firmware.
 
     Examples:

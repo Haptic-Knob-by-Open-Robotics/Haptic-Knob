@@ -8,13 +8,26 @@
 /*
   Overall program flow:
 
-  1. boot ESP32 and start serial
-  2. Initialize shared state / mutex / runtime defaults 
-  3. Initialize the real motor hardware stack
+  1. boot ESP32 and start serial for debug output 
+  2. Initialize shared state, mutexes and runtime defaults 
+  3. Initialize the real motor hardware stack:
+      - SPI bus 
+      - encoder 
+      - driver
+      - motor
+      - ADC or any ohter peripherals we use 
   4. Create FreeRTOS tasks
   5. Let tasks run forever 
 
   Runtime flow: 
+  MAIN FOR NOW: 
+  - ControlTask: The main real-time task. It runs the fast motor/control loop every cycle and runs
+                  the slower haptic model update every N cycles using a deterministic counter 
+  - TelemetryTask: Handles serial prints, debug output, and optimal command parsing.
+
+  - WatchdogTask: Monitors task health, stale data, timing faults, and safety conditions. 
+
+  SUB: 
   - MotorControlTask reads real hardware state and applies commands 
   - ModelControlTask computes what the knob should feel like 
   - TelemetryTask handles serial commands and debug pritns 
@@ -27,22 +40,38 @@ void setup()
   Serial.begin(115200); 
   delay(1500); 
 
-  // TODO: initialize shared state, config defualts, and mutex 
+  Serial.println();
+  Serial.println("==== HAPTIC KNOB BOOT ====");
+
+  // Initialize shared software state first. This should set up mutexes, default setpoints, timestamps,
+  // fault falgs, and any shared runtime variables that tasks use. 
   initSharedState(); 
 
+  // Initialize all real hardware before starting any tasks, we only want the tasks to start running once the 
+  // hardware stack is fully ready 
   if (!initHardware())
   {
     Serial.println("Hardware initilization failed");
-    while (true){}
+    while (true){
+      delay(1000);
+    }
   }
 
-  // TODO: Create the Core tasks 
+  // Create the main deterministic control task, note that we give this the highest priority since it owns the 
+  // real time motor/control path 
+  startControlTask(); 
+
+  // Start telemtry task 
+  startTelemetryTask(); 
+
+  // Start the watchdog/safety monitoring task
+  startWatchdogTask
 
   Serial.println("System startup complete!");
 }
 
 void loop()
 {
-  // FreeRTOS tasks own the runtime behavior now 
+  // FreeRTOS tasks own the runtime behavior now so just block forever to avoid wasting CPU time here 
   vTaskDelay(portMAX_DELAY);
 }
