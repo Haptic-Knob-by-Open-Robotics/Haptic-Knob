@@ -81,10 +81,36 @@ void computeInductorCommand(const MeasuredState& measured,
 {
     // TODO:
     // 1. use measured acceleration
+    float alpha = measured.acceleration_rad_s2;
+    float omega = measured.velocity_rad_s;
+    // Deadband
+    if (fabsf(alpha) < ALPHA_DEADBAND)
+    {
+        alpha = 0.0f;
+    }
+
+    if (fabsf(omega) < OMEGA_DEADBAND)
+    {
+        omega = 0.0f;
+    }
     // 2. compute inertial / inductive torque
+    float torqueCmd = -config.virtual_inductance *alpha - INDUCTOR_DAMPING * omega;
+    torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
     // 3. convert torque -> iq_cmd
+    float iqCmd = torqueCmd / TORQUE_CONST;
     // 4. clamp current
+    iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
+
+    if (fabsf(iqCmd) < IQ_DEADBAND)
+    {
+        iqCmd = 0.0f;
+    }
     // 5. set use_voltage_mode = false
+    command.use_voltage_mode = false;
+    command.iq_cmd = iqCmd;
+    command.v_cmd = 0.0f;
+    command.last_update_us = micros();
+
 }
 
 void computeDiodeCommand(const MeasuredState& measured,
