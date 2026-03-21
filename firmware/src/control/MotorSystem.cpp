@@ -190,6 +190,11 @@ void updateMotorControlStep()
     motor.loopFOC();
 }
 
+void updateEncoder()
+{
+    encoder.update();
+}
+
 void applyMotorCurrent(float iqCmd)
 {
     motor.move(iqCmd);

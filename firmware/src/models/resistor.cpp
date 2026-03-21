@@ -33,19 +33,19 @@ BLDCMotor motor(POLE_PAIRS);
 static constexpr float RESISTANCE_BASE = 1.0f;
 
 // Effective resistance = RESISTANCE_BASE * gainMult
-static float gainMult = 0.001f;
+static float gainMult = 0.0001f;
 
 // Motor torque constant Kt (from datasheet)
 static constexpr float TORQUE_CONST = 0.035f;
 
 // Safety limits
-// we need to prevent the system from sending too much torque/currnet or else andys wrist could potentially break
+// we need to prevent the system from sending too much torque/current or else andys wrist could potentially break
 static constexpr float MAX_TORQUE = 5.0f;
 static constexpr float MAX_CURRENT = 2.0f;
 
 // Low-pass filter on velocity to remove encoder noise spikes
 // Tf = time constant. Try 0.05 to start, increase if still spikey
-LowPassFilter velocityFilter(0.05f);
+LowPassFilter velocityFilter(0.5f);
 
 // Telemetry rate — 20ms = 50Hz for smooth plotting
 static constexpr uint32_t PRINT_PERIOD_MS = 20;
@@ -115,8 +115,8 @@ void askUserForPIDGains(float *PID_Consts)
         PID_Consts[5] = 0.0001f;
     }
 
-    Serial.printf("Q-axis: P=%.4f, I=%.4f, D=%.4f\n", PID_Consts[0], PID_Consts[1], PID_Consts[2]);
-    Serial.printf("D-axis: P=%.4f, I=%.4f, D=%.4f\n", PID_Consts[3], PID_Consts[4], PID_Consts[5]);
+    Serial.printf("Q-axis: P=%.6f, I=%.6f, D=%.6f\n", PID_Consts[0], PID_Consts[1], PID_Consts[2]);
+    Serial.printf("D-axis: P=%.6f, I=%.6f, D=%.6f\n", PID_Consts[3], PID_Consts[4], PID_Consts[5]);
 }
 
 static float clampf(float val, float min, float max)
@@ -274,8 +274,8 @@ bool motorSetup()
     motor.PID_current_d.limit = VOLTAGE_LIMIT;
 
     // Low-pass filters on measured currents (this helps reduce the noise in the current loop)
-    motor.LPF_current_q.Tf = 0.05f; // change these as u wish
-    motor.LPF_current_d.Tf = 0.05f;
+    motor.LPF_current_q.Tf = 0.5f; // change these as u wish
+    motor.LPF_current_d.Tf = 0.5f;
 
     // initFOC performs electrical angle alignment and starts the
     // closed-loop FOC control structure.
@@ -372,13 +372,8 @@ void loop()
 
     // Compute resistive torque using effective resistance
     // filter idle garbage values
-    float rawVel = encoder.getVelocity();
-    float filteredVel = velocityFilter(rawVel);
+    float omega = velocityFilter(encoder.getVelocity());
 
-    float omega = 0;
-    if (filteredVel > 0.25f || filteredVel < -0.25f)
-        omega = filteredVel;
-        
     float effectiveResistance = RESISTANCE_BASE * gainMult;
     float torqueCmd = clampf(-effectiveResistance * omega, -MAX_TORQUE, MAX_TORQUE);
 
@@ -391,7 +386,7 @@ void loop()
     //   motor.torque_controller = foc_current
     // SimpleFOC interprets this command as the torque-producing current target, and the current loop will try to make actual current match it.
     // so desired torque -> desired current -> current PID -> voltage command -> PWM -> motor phases -> actual torque feedback
-    motor.move(iqCmd);
+    // motor.move(iqCmd);
 
     // Telemetry
     uint32_t now = millis();

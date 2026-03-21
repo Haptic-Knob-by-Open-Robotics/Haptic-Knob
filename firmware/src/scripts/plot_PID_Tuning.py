@@ -319,11 +319,13 @@ def build_gui(initial_pid, is_demo):
         sl_pos.width - 0.04,
         0.025,
     ])
+
     gain_slider = Slider(
-        ax_slider, "Gain", 0.001, 2.0,
-        valinit=1.0, valstep=0.001,
+        ax_slider, "Gain", 0.0001, 0.0100,
+        valinit=0.0001, valstep=0.0001,
         color="#89b4fa", track_color="#313244",
     )
+
     gain_slider.label.set_color("#cdd6f4")
     gain_slider.valtext.set_color("#cba6f7")
 
@@ -388,7 +390,7 @@ def build_gui(initial_pid, is_demo):
     # ── Callbacks ────────────────────────────────────────────────────
 
     def on_gain_changed(val):
-        g = round(gain_slider.val, 3)
+        g = gain_slider.val
         send_queue.put(f"G:{g}\n")
         gain_status_text.set_text(
             f"Effective resistance = 1.0 × {g} = {g}"
