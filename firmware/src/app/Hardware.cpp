@@ -36,10 +36,19 @@
     Those belong in HapticModels.cpp.
 */
 
-
+static bool setupCurrentSense();
 static bool setupDriver();
 static bool setupExternalAdc();
 static bool setupMotor();
+
+
+static SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
+static ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+static InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+static BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
+static BLDCMotor motor(POLE_PAIRS);
+
+
 
 bool initHardware()
 {
@@ -50,38 +59,31 @@ bool initHardware()
     // 4. init BLDC driver
     // 5. init motor object
     // 6. init FOC
+    Serial.println("Starting hardware initialization...");
 
-    SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-    ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-    InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
-    BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
-    BLDCMotor motor(POLE_PAIRS);
+    spiBus.begin();
+    encoder.init(&spiBus);
 
-    return true;
-}
-// Driver Setup
-bool driverSetup()
-{
-    driver.pwm_frequency = 30e3;
-    driver.dead_zone = 0.05f;
-    driver.voltage_power_supply = VOLTAGE_SUPPLY;
-    driver.voltage_limit = VOLTAGE_LIMIT;
-
-    Serial.print("Initializing motor driver");
-    if (!driver.init())
-    {
-        Serial.println("FAILED");
+    if (!setupExternalAdc())
         return false;
-    }
 
-    driver.enable();
-    Serial.println("SUCCESSFUL driver setup");
+    if (!setupDriver())
+        return false;
+
+    if (!setupCurrentSense())
+        return false;
+
+    if (!setupMotor())
+        return false;
+
+    Serial.println("Hardware initialization complete.");
     return true;
 }
+
 
 
 // Current Sense Setup
-bool currentSenseSetup()
+static bool setupCurrentSense()
 {
     current_sense.linkDriver(&driver);
 
@@ -103,52 +105,6 @@ bool currentSenseSetup()
     return true;
 }
 
-// Motor & FOC Setup
-bool motorSetup()
-{
-    motor.linkDriver(&driver);
-    motor.linkSensor(&encoder);
-    motor.linkCurrentSense(&current_sense);
-
-    motor.controller = MotionControlType::torque;
-    motor.torque_controller = TorqueControlType::foc_current;
-
-    motor.voltage_limit = VOLTAGE_LIMIT;
-    motor.current_limit = MAX_CURRENT;
-
-    float PID_Constants[6];
-    askUserForPIDGains(PID_Constants);
-
-    motor.PID_current_q.P = PID_Constants[0];
-    motor.PID_current_q.I = PID_Constants[1];
-    motor.PID_current_q.D = PID_Constants[2];
-    motor.PID_current_q.limit = VOLTAGE_LIMIT;
-
-    motor.PID_current_d.P = PID_Constants[3];
-    motor.PID_current_d.I = PID_Constants[4];
-    motor.PID_current_d.D = PID_Constants[5];
-    motor.PID_current_d.limit = VOLTAGE_LIMIT;
-
-    motor.LPF_current_q.Tf = 0.05f;
-    motor.LPF_current_d.Tf = 0.05f;
-
-    Serial.print("Initializing motor object  ");
-    if (!motor.init())
-    {
-        Serial.println("FAILED");
-        return false;
-    }
-
-    Serial.print("Initializing FOC  ");
-    if (!motor.initFOC())
-    {
-        Serial.println("FAILED");
-        return false;
-    }
-
-    Serial.println("SUCCESSFUL Motor & FOC initialization");
-    return true;
-}
 
 void updateHardwareControlStep()
 {
@@ -156,45 +112,45 @@ void updateHardwareControlStep()
     // - update encoder
     // - optionally sample external ADC / current sensing
     // - run motor.loopFOC()
+    encoder.update();
+    motor.loopFOC();
 }
 
 void applyMotorCurrent(float iq_cmd)
 {
     // TODO: send q-axis current command
-}
-
-void applyMotorVoltage(float v_cmd)
-{
-    // TODO: send voltage command
+    motor.move(iq_cmd);
 }
 
 void stopMotor()
 {
     // TODO: send zero output
+    motor.move(0.0f);
 }
 
 float getMotorAngleRad()
 {
     // TODO: return encoder angle in radians
-    return 0.0f;
+    return encoder.getAngle();
 }
 
 float getMotorAngleDegWrapped()
 {
     // TODO: return wrapped angle in degrees
-    return 0.0f;
+    return encoder.angleDegWrapped();
 }
 
 float getMotorVelocityRad()
 {
     // TODO: return shaft velocity
-    return 0.0f;
+    return encoder.getVelocity();
 }
 
 float getMeasuredIq()
 {
     // TODO: return measured q-axis current
-    return 0.0f;
+    DQCurrent_s dq = current_sense.getFOCCurrentsDQ(encoder.getAngle());
+    return dq.q;
 }
 
 PhaseCurrent_s getPhaseCurrents()
@@ -207,12 +163,34 @@ void setCurrentPidGains(float qp, float qi, float qd,
                         float dp, float di, float dd)
 {
     // TODO: update motor PID_current_q / PID_current_d values
+    motor.PID_current_q.P = qp;
+    motor.PID_current_q.I = qi;
+    motor.PID_current_q.D = qd;
+
+    motor.PID_current_d.P = dp;
+    motor.PID_current_d.I = di;
+    motor.PID_current_d.D = dd;
 }
 
 static bool setupDriver()
 {
     // TODO: set PWM frequency, dead zone, voltage supply, voltage limit
     // TODO: init driver
+    driver.pwm_frequency = 30e3;
+    driver.dead_zone = 0.05f;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY;
+    driver.voltage_limit = VOLTAGE_LIMIT;
+
+    Serial.print("Initializing motor driver");
+    if (!driver.init())
+    {
+        Serial.println("FAILED");
+        return false;
+    }
+
+    driver.enable();
+    Serial.println("SUCCESSFUL driver setup");
+    
     return true;
 }
 
@@ -237,7 +215,8 @@ static bool setupMotor()
     // - configure limits
     motor.voltage_limit = VOLTAGE_LIMIT;
     motor.current_limit = CURRENT_LIMIT; 
-//values will be changed to variables
+
+    // default PID gains 
     motor.PID_current_q.P = 2.0f;
     motor.PID_current_q.I = 200.0f;
     motor.PID_current_q.D = 0.0f;

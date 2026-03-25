@@ -19,7 +19,7 @@
     Responsibilities:
       - initialize the physical motor/sensor system
       - expose one control-step update function for the fast motor loop
-      - expose helper functions to apply current/voltage commands
+      - expose helper functions to apply current commands
       - expose helper functions to read angle, velocity, and measured currents
 */
 
@@ -41,7 +41,6 @@ void updateHardwareControlStep();
     Use voltage mode for diode if that is your chosen implementation.
 */
 void applyMotorCurrent(float iq_cmd);
-void applyMotorVoltage(float v_cmd);
 void stopMotor();
 
 
