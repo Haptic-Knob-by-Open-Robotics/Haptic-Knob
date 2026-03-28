@@ -3,6 +3,7 @@
 #include "app/SharedState.h"
 #include "app/MotorControlTask.h"
 #include "app/ModelControlTask.h"
+#include "app/ControlTask.h"
 #include "app/TelemetryTask.h"
 #include "app/WatchdogTask.h"
 /*
@@ -46,7 +47,14 @@ void setup()
 
   // Initialize shared software state first. This should set up mutexes, default setpoints, timestamps,
   // fault falgs, and any shared runtime variables that tasks use.
-  initSharedState();
+  if (!initSharedState())
+    {
+        Serial.println("Shared state initialization failed");
+        while (true)
+        {
+            delay(1000);
+        }
+    }
 
   // Initialize all real hardware before starting any tasks, we only want the tasks to start running once the
   // hardware stack is fully ready
@@ -60,14 +68,14 @@ void setup()
   }
 
   // Start telemtry task
-  startTelemetryTask();
+  //startTelemetryTask();
 
   // Create the main deterministic control task, note that we give this the highest priority since it owns the
   // real time motor/control path
   startControlTask();
 
   // Start the watchdog/safety monitoring task
-  startWatchdogTask();
+  // startWatchdogTask();
 
   Serial.println("System startup complete!");
 }

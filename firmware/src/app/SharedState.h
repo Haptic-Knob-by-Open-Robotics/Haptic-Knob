@@ -1,31 +1,8 @@
+#pragma once
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "app/Faults.h"
-
-/*
-    This file defines the shared data used by the FreeRTOS tasks.
-
-    Since the firmware is split into multiple tasks, we need one central
-    place to store:
-      - the latest measured motor/shaft state
-      - the latest command requested by the haptic model
-      - the current configuration / active mode / gains
-      - fault flags if something goes wrong
-
-    Typical data stored here:
-      - measured angle
-      - measured velocity
-      - measured acceleration
-      - measured q-axis current / phase currents
-      - desired iq command
-      - desired voltage command
-      - active mode (R/C/L/diode)
-      - gains / thresholds / origin
-      - faulted state
-
-    Access to this data should be protected with a mutex so tasks do not
-    overwrite each other.
-*/
 
 enum class HapticMode : uint8_t
 {
@@ -66,20 +43,17 @@ struct PIDGains
 
 struct CurrentLoopPID
 {
-    PIDGains q; // q-axis current loop PID
-    PIDGains d; // d-axis current loop PID
+    PIDGains q;
+    PIDGains d;
 };
 
 struct RuntimeConfig
 {
-
     HapticMode active_mode = HapticMode::Resistor;
 
-    // PID gains for haptic model
     CurrentLoopPID resistor_pid = {
-        {10.0f, 150.0f, 0.0f}, // q-axis
-        {10.0f, 150.0f, 0.0f}  // d-axis
-    };
+        {10.0f, 150.0f, 0.0f},
+        {10.0f, 150.0f, 0.0f}};
 
     CurrentLoopPID capacitor_pid = {
         {3.0f, 300.0f, 0.0f},
@@ -97,27 +71,21 @@ struct RuntimeConfig
         {3.0f, 300.0f, 0.0f},
         {3.0f, 300.0f, 0.0f}};
 
-    // Resistor params
     float resistance_gain = 0.001f;
 
-    // Capacitor / spring-damper params
     float k_virtual = 0.6f;
     float b_virtual = 0.03f;
     float theta_origin = 0.0f;
 
-    // Inductor params
     float virtual_inductance = 0.020f;
     float alpha_deadband = 0.0f;
     float omega_deadband = 0.0f;
     float iq_deadband = 0.0f;
     float inductor_damping = 0.0f;
 
-    // Diode params
     float diode_threshold = 0.1f;
     float diode_gain = 2.0f;
 
-    // RLC params
-    // float OMEGA_DEADBAND = 0.15f;
     float max_state_abs = 20.0f;
     float input_gain = 1.0f;
     float torque_gain = 0.020f;
@@ -128,7 +96,6 @@ struct RuntimeConfig
 
 struct SystemState
 {
-
     bool control_enabled = false;
     bool trial_configured = false;
     bool trial_active = false;
@@ -148,7 +115,6 @@ extern SemaphoreHandle_t g_state_mutex;
 
 bool initSharedState();
 
-// Read/write helper
 bool readMeasuredState(MeasuredState &out);
 bool writeMeasuredState(const MeasuredState &in);
 

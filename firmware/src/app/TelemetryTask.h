@@ -1,3 +1,5 @@
+#pragma once
+
 /*
     TelemetryTask.h
 
@@ -7,4 +9,4 @@
 */
 
 void TelemetryTask(void* pvParameters);
-
+void startTelemetryTask();
