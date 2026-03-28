@@ -74,7 +74,7 @@ struct RuntimeConfig
     float resistance_gain = 0.1f;
 
     float k_virtual = 0.6f;
-    float b_virtual = 0.06f;
+    float b_virtual = 0.03f;
     float theta_origin = 0.0f;
 
     float virtual_inductance = 0.020f;

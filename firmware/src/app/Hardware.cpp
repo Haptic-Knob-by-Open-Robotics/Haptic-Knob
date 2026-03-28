@@ -162,7 +162,8 @@ float getMotorAngleDegWrapped()
 // This value is estimated/maintained by the SimpleFOC motor object.
 float getMotorVelocityRad()
 {
-    return motor.shaftVelocity();
+    // return motor.shaftVelocity();
+    return encoder.getVelocity();
 }
 
 // Return the measured q-axis current.
