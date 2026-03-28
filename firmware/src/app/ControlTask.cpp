@@ -372,8 +372,8 @@ void controlTask(void *pvParameters)
 
         RuntimeConfig config = readRuntimeConfigSnapshot();
         ControlFlags flags = readControlFlags();
-        const bool shouldDrive = flags.control_enabled && !flags.fault_latched;
-
+        // const bool shouldDrive = flags.control_enabled && !flags.fault_latched;
+        const bool shouldDrive = 1;
         updateHardwareControlStep();
 
         MeasuredState measured{};
@@ -419,6 +419,7 @@ void controlTask(void *pvParameters)
 
         if (shouldDrive)
         {
+            // printf("Should be driving");
             applyMotorCurrent(heldCommand.iq_cmd);
         }
         else

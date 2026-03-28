@@ -52,8 +52,8 @@ struct RuntimeConfig
     HapticMode active_mode = HapticMode::Resistor;
 
     CurrentLoopPID resistor_pid = {
-        {10.0f, 150.0f, 0.0f},
-        {10.0f, 150.0f, 0.0f}};
+        {10.0f, 150.0f, 0.0001f},
+        {10.0f, 150.0f, 0.0001f}};
 
     CurrentLoopPID capacitor_pid = {
         {3.0f, 300.0f, 0.0f},
@@ -71,7 +71,7 @@ struct RuntimeConfig
         {3.0f, 300.0f, 0.0f},
         {3.0f, 300.0f, 0.0f}};
 
-    float resistance_gain = 0.001f;
+    float resistance_gain = 0.1f;
 
     float k_virtual = 0.6f;
     float b_virtual = 0.03f;

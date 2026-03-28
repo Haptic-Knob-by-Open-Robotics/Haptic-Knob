@@ -46,7 +46,7 @@ void computeCapacitorCommand(const MeasuredState &measured,
     {
         omega = 0.0f;
     }
-
+    printf("omega");
     const float displacement = theta - config.theta_origin;
     float torqueCmd = -config.k_virtual * displacement - config.b_virtual * omega;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);

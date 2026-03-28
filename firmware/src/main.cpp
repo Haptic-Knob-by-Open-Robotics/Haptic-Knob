@@ -68,7 +68,7 @@ void setup()
   }
 
   // Start telemtry task
-  //startTelemetryTask();
+  startTelemetryTask();
 
   // Create the main deterministic control task, note that we give this the highest priority since it owns the
   // real time motor/control path
@@ -83,5 +83,7 @@ void setup()
 void loop()
 {
   // FreeRTOS tasks own the runtime behavior now so just block forever to avoid wasting CPU time here
+  Serial.println("inside loop");
+
   vTaskDelay(portMAX_DELAY);
 }
