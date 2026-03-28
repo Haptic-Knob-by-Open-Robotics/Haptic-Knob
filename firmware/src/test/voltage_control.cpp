@@ -6,7 +6,7 @@
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -14,20 +14,19 @@ float target_voltage_torque = 0.2f;
 
 void printData()
 {
-//   encoder.update();
+  //   encoder.update();
 
-//   Serial.printf(
-//       "Angle: %7.2f deg | Vel: %7.3f rad/s | ShaftAngle: %7.3f rad\n",
-//       encoder.angleDegWrapped(),
-//       encoder.getVelocity(),
-//       motor.shaft_angle
-//   );
-Serial.printf(
+  //   Serial.printf(
+  //       "Angle: %7.2f deg | Vel: %7.3f rad/s | ShaftAngle: %7.3f rad\n",
+  //       encoder.angleDegWrapped(),
+  //       encoder.getVelocity(),
+  //       motor.shaft_angle
+  //   );
+  Serial.printf(
       "Angle: %7.2f deg | Vel: %7.3f rad/s | ShaftAngle: %7.3f rad\n",
       motor.shaft_angle * 180.0f / _PI,
       motor.shaft_velocity,
-      motor.shaft_angle
-  );
+      motor.shaft_angle);
 }
 
 void setup()
@@ -41,8 +40,8 @@ void setup()
   encoder.init(spiBus.bus());
   Serial.println("Encoder initialized");
 
-  driver.voltage_power_supply = VOLTAGE_SUPPLY;
-  driver.voltage_limit = VOLTAGE_LIMIT;
+  driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+  driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
   driver.pwm_frequency = 30000;
   driver.dead_zone = 0.05f;
 
@@ -50,7 +49,9 @@ void setup()
   if (!driver.init())
   {
     Serial.println("FAILED");
-    while (1) {}
+    while (1)
+    {
+    }
   }
   Serial.println("done");
 
@@ -60,12 +61,10 @@ void setup()
   motor.controller = MotionControlType::torque;
   motor.torque_controller = TorqueControlType::voltage;
 
-  motor.voltage_limit = VOLTAGE_LIMIT;
+  motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
   motor.velocity_limit = 20.0f;
   motor.voltage_sensor_align = 4.0f;
 
-
-  
   Serial.print("Motor init... ");
   motor.init();
   Serial.println("done");
@@ -76,7 +75,9 @@ void setup()
   if (!motor.initFOC())
   {
     Serial.println("FAILED");
-    while (1) {}
+    while (1)
+    {
+    }
   }
   Serial.println("done");
 
@@ -85,28 +86,28 @@ void setup()
 
 void loop()
 {
-//   motor.loopFOC();
-//   motor.move(target_voltage_torque);
+  //   motor.loopFOC();
+  //   motor.move(target_voltage_torque);
 
-//   static uint32_t last_print = 0;
-//   static uint32_t last_flip = 0;
-//   uint32_t now = millis();
+  //   static uint32_t last_print = 0;
+  //   static uint32_t last_flip = 0;
+  //   uint32_t now = millis();
 
-//   if (now - last_flip > 3000)
-//   {
-//     last_flip = now;
-//     target_voltage_torque = -target_voltage_torque;
-//   }
+  //   if (now - last_flip > 3000)
+  //   {
+  //     last_flip = now;
+  //     target_voltage_torque = -target_voltage_torque;
+  //   }
 
-//   if (now - last_print > 100)
-//   {
-//     last_print = now;
-//     printData();
-//   }
-    motor.loopFOC();
-    motor.move(4.0f);
+  //   if (now - last_print > 100)
+  //   {
+  //     last_print = now;
+  //     printData();
+  //   }
+  motor.loopFOC();
+  motor.move(4.0f);
 
-//   motor.move(target_voltage_torque);
+  //   motor.move(target_voltage_torque);
 
   static uint32_t last_print = 0;
   if (millis() - last_print > 100)

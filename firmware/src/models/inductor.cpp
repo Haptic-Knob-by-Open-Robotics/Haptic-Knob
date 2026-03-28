@@ -8,7 +8,7 @@
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -31,9 +31,9 @@ static constexpr float MAX_CURRENT = 2.0f;
 static constexpr float ALPHA_FILTER_TF = 0.015f;
 
 // Deadbands used to suppress encoder noise around zero motion.
-static constexpr float OMEGA_DEADBAND = 0.15f;  // rad/s
-static constexpr float ALPHA_DEADBAND = 8.0f;   // rad/s^2
-static constexpr float IQ_DEADBAND = 0.03f;     // A
+static constexpr float OMEGA_DEADBAND = 0.15f; // rad/s
+static constexpr float ALPHA_DEADBAND = 8.0f;  // rad/s^2
+static constexpr float IQ_DEADBAND = 0.03f;    // A
 
 // How often to print debug info
 static constexpr uint32_t PRINT_PERIOD_MS = 100;
@@ -149,8 +149,8 @@ bool driverSetup()
 {
     driver.pwm_frequency = 30000;
     driver.dead_zone = 0.05f;
-    driver.voltage_power_supply = VOLTAGE_SUPPLY;
-    driver.voltage_limit = VOLTAGE_LIMIT;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+    driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
 
     Serial.print("Initializing motor driver  ");
 
@@ -182,7 +182,7 @@ bool currentSenseSetup()
     }
 
     Serial.print("Aligning current sense w driver");
-    int alignOk = current_sense.driverAlign(VOLTAGE_LIMIT);
+    int alignOk = current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V);
     if (!alignOk)
     {
         Serial.println("FAILED");
@@ -204,7 +204,7 @@ bool motorSetup()
     motor.controller = MotionControlType::torque;
     motor.torque_controller = TorqueControlType::foc_current;
 
-    motor.voltage_limit = VOLTAGE_LIMIT;
+    motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
     motor.current_limit = MAX_CURRENT;
 
     float pidConstants[6];
@@ -213,12 +213,12 @@ bool motorSetup()
     motor.PID_current_q.P = pidConstants[0];
     motor.PID_current_q.I = pidConstants[1];
     motor.PID_current_q.D = pidConstants[2];
-    motor.PID_current_q.limit = VOLTAGE_LIMIT;
+    motor.PID_current_q.limit = DRIVER_VOLTAGE_LIMIT_V;
 
     motor.PID_current_d.P = pidConstants[3];
     motor.PID_current_d.I = pidConstants[4];
     motor.PID_current_d.D = pidConstants[5];
-    motor.PID_current_d.limit = VOLTAGE_LIMIT;
+    motor.PID_current_d.limit = DRIVER_VOLTAGE_LIMIT_V;
 
     motor.LPF_current_q.Tf = 0.002f;
     motor.LPF_current_d.Tf = 0.002f;

@@ -10,9 +10,10 @@ BLDCDriver6PWM driver(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
 
 unsigned long lastPrintUs = 0;
-const unsigned long printPeriodUs = 10000;   // 100 Hz
+const unsigned long printPeriodUs = 10000; // 100 Hz
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     delay(3000);
 
@@ -40,7 +41,8 @@ void setup() {
     Serial.println("time_s,angle_rad,angle_deg,velocity_rad_s");
 }
 
-void loop() {
+void loop()
+{
 
     motor.loopFOC();
     motor.move();
@@ -52,18 +54,19 @@ void loop() {
     float velocity = encoder.getVelocity();
 
     unsigned long now = micros();
-    if (now - lastPrintUs >= printPeriodUs) {
+    if (now - lastPrintUs >= printPeriodUs)
+    {
 
         lastPrintUs = now;
 
         float t = now * 1e-6f;
 
-        Serial.print(t,6);
+        Serial.print(t, 6);
         Serial.print(",");
-        Serial.print(angleRad,6);
+        Serial.print(angleRad, 6);
         Serial.print(",");
-        Serial.print(angleDeg,3);
+        Serial.print(angleDeg, 3);
         Serial.print(",");
-        Serial.println(velocity,6);
+        Serial.println(velocity, 6);
     }
 }

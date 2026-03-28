@@ -6,7 +6,7 @@
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -48,7 +48,7 @@ void setup()
 
   // Driver
   Serial.print("Driver init... ");
-  driver.voltage_power_supply = VOLTAGE_SUPPLY;
+  driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
   driver.pwm_frequency = 30000;
   driver.dead_zone = 0.05f;
   if (!driver.init())
@@ -73,9 +73,9 @@ void setup()
       ;
   }
 
-//   Serial.println("Calibrating...");
-//   current_sense.driverAlign(VOLTAGE_LIMIT);
-//   Serial.println("Calibration done\n");
+  //   Serial.println("Calibrating...");
+  //   current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V);
+  //   Serial.println("Calibration done\n");
 
   motor.linkDriver(&driver);
   motor.linkSensor(&encoder);
@@ -83,8 +83,8 @@ void setup()
   motor.torque_controller = TorqueControlType::foc_current;
   motor.controller = MotionControlType::torque;
 
-  motor.voltage_limit = VOLTAGE_LIMIT; // keep low for testing
-  motor.current_limit = 1.0f; 
+  motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V; // keep low for testing
+  motor.current_limit = 1.0f;
 
   // current loop tuning (conservative starting values)
   motor.PID_current_q.P = 3.0f;
@@ -103,12 +103,13 @@ void setup()
   motor.init();
   Serial.print("Done");
 
-
   Serial.print("FOC init... ");
   if (!motor.initFOC())
   {
     Serial.println("FAILED");
-    while (1) {}
+    while (1)
+    {
+    }
   }
 
   motor.target = target_current;
@@ -121,10 +122,10 @@ void setup()
 void loop()
 {
   motor.loopFOC();
-  
+
   motor.move();
   motor.monitor();
-  // command.run(); 
+  // command.run();
   // static uint32_t last_print = 0;
   // static uint32_t last_switch = 0;
   // uint32_t now = millis();

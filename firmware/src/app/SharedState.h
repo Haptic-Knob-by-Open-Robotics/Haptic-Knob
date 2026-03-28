@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "app/Faults.h"
@@ -28,13 +27,14 @@
     overwrite each other.
 */
 
-
-enum class HapticMode : uint8_t {
-    Resistor = 0, 
-    Capacitor, 
-    Inductor, Diode, RLC
+enum class HapticMode : uint8_t
+{
+    Resistor = 0,
+    Capacitor,
+    Inductor,
+    Diode,
+    RLC
 };
-
 
 struct MeasuredState
 {
@@ -51,10 +51,10 @@ struct MeasuredState
     uint32_t last_update_us = 0;
 };
 
-struct HapticCommand 
+struct HapticCommand
 {
     float iq_cmd = 0.0f;
-    uint32_t last_update_us = 0; 
+    uint32_t last_update_us = 0;
 };
 
 struct PIDGains
@@ -66,93 +66,97 @@ struct PIDGains
 
 struct CurrentLoopPID
 {
-    PIDGains q;   // q-axis current loop PID
-    PIDGains d;   // d-axis current loop PID
+    PIDGains q; // q-axis current loop PID
+    PIDGains d; // d-axis current loop PID
 };
 
-struct RuntimeConfig {
-  
+struct RuntimeConfig
+{
+
     HapticMode active_mode = HapticMode::Resistor;
 
-    // Global params
-    static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
-    static constexpr float MAX_TORQUE   = 0.12f;
-    static constexpr float MAX_CURRENT  = 2.0f;
-    
     // PID gains for haptic model
     CurrentLoopPID resistor_pid = {
-        {3.0f, 300.0f, 0.0f},   // q-axis
-        {3.0f, 300.0f, 0.0f}    // d-axis
+        {10.0f, 150.0f, 0.0f}, // q-axis
+        {10.0f, 150.0f, 0.0f}  // d-axis
     };
 
     CurrentLoopPID capacitor_pid = {
         {3.0f, 300.0f, 0.0f},
-        {3.0f, 300.0f, 0.0f}
-    };
+        {3.0f, 300.0f, 0.0f}};
 
     CurrentLoopPID inductor_pid = {
         {3.0f, 300.0f, 0.0f},
-        {3.0f, 300.0f, 0.0f}
-    };
+        {3.0f, 300.0f, 0.0f}};
 
     CurrentLoopPID diode_pid = {
         {3.0f, 300.0f, 0.0f},
-        {3.0f, 300.0f, 0.0f}
-    };
+        {3.0f, 300.0f, 0.0f}};
 
     CurrentLoopPID rlc_pid = {
         {3.0f, 300.0f, 0.0f},
-        {3.0f, 300.0f, 0.0f}
-    };
+        {3.0f, 300.0f, 0.0f}};
 
-    
     // Resistor params
     float resistance_gain = 0.001f;
 
-    // Capacitor / spring-damper params 
+    // Capacitor / spring-damper params
     float k_virtual = 0.6f;
     float b_virtual = 0.03f;
     float theta_origin = 0.0f;
 
     // Inductor params
     float virtual_inductance = 0.020f;
-    float ALPHA_DEADBAND = 0.0f;
-    float OMEGA_DEADBAND = 0.0f;
-    float IQ_DEADBAND = 0.0f;
-    float INDUCTOR_DAMPING = 0.0f;
-
+    float alpha_deadband = 0.0f;
+    float omega_deadband = 0.0f;
+    float iq_deadband = 0.0f;
+    float inductor_damping = 0.0f;
 
     // Diode params
     float diode_threshold = 0.1f;
     float diode_gain = 2.0f;
 
     // RLC params
-    //float OMEGA_DEADBAND = 0.15f;
-    float MAX_STATE_ABS = 20.0f;
-    float INPUT_GAIN = 1.0f;
-    float TORQUE_GAIN = 0.020f;
+    // float OMEGA_DEADBAND = 0.15f;
+    float max_state_abs = 20.0f;
+    float input_gain = 1.0f;
+    float torque_gain = 0.020f;
 
-    float virtual_resistance =0.5f;
+    float virtual_resistance = 0.5f;
     float virtual_capacitance = 0.30f;
 };
 
-struct SystemState{
+struct SystemState
+{
 
     bool control_enabled = false;
-    bool trial_configured = false; 
-    bool trial_active = false; 
+    bool trial_configured = false;
+    bool trial_active = false;
 
-    bool fault_latched = false; 
-    uint32_t fault_bits = 0; 
+    bool fault_latched = false;
+    uint32_t fault_bits = 0;
 
-    uint32_t control_last_heartbeat_us = 0; 
-    uint32_t telemetry_last_heartbeat_us = 0; 
+    uint32_t control_last_heartbeat_us = 0;
+    uint32_t telemetry_last_heartbeat_us = 0;
 };
 
 extern MeasuredState g_measured_state;
 extern HapticCommand g_haptic_command;
-extern RuntimeConfig g_runtime_config; 
-extern SystemState g_system_state; 
-extern SemaphoreHandle_t g_state_mutex; 
+extern RuntimeConfig g_runtime_config;
+extern SystemState g_system_state;
+extern SemaphoreHandle_t g_state_mutex;
 
-void initSharedState(); 
+bool initSharedState();
+
+// Read/write helper
+bool readMeasuredState(MeasuredState &out);
+bool writeMeasuredState(const MeasuredState &in);
+
+bool readHapticCommand(HapticCommand &out);
+bool writeHapticCommand(const HapticCommand &in);
+
+bool readRuntimeConfig(RuntimeConfig &out);
+bool writeRuntimeConfig(const RuntimeConfig &in);
+
+bool readSystemState(SystemState &out);
+bool writeSystemState(const SystemState &in);

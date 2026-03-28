@@ -23,7 +23,7 @@
 // =================== HARDWARE OBJECTS =============
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -204,8 +204,8 @@ bool driverSetup()
 {
     driver.pwm_frequency = 30e3;
     driver.dead_zone = 0.05f;
-    driver.voltage_power_supply = VOLTAGE_SUPPLY;
-    driver.voltage_limit = VOLTAGE_LIMIT;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+    driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
     Serial.print("Initializing motor driver  ");
     if (!driver.init())
     {
@@ -228,7 +228,7 @@ bool currentSenseSetup()
         return false;
     }
     Serial.print("Aligning current sense w driver");
-    if (!current_sense.driverAlign(VOLTAGE_LIMIT))
+    if (!current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V))
     {
         Serial.println("FAILED");
         return false;
@@ -252,7 +252,7 @@ bool motorSetup()
     motor.torque_controller = TorqueControlType::foc_current;
 
     // Safety Limits
-    motor.voltage_limit = VOLTAGE_LIMIT;
+    motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
     motor.current_limit = MAX_CURRENT;
 
     // Current loop PID tuning
@@ -265,13 +265,13 @@ bool motorSetup()
     motor.PID_current_q.P = PID_Constants[0];
     motor.PID_current_q.I = PID_Constants[1];
     motor.PID_current_q.D = PID_Constants[2];
-    motor.PID_current_q.limit = VOLTAGE_LIMIT;
+    motor.PID_current_q.limit = DRIVER_VOLTAGE_LIMIT_V;
 
     // D-Axis
     motor.PID_current_d.P = PID_Constants[3];
     motor.PID_current_d.I = PID_Constants[4];
     motor.PID_current_d.D = PID_Constants[5];
-    motor.PID_current_d.limit = VOLTAGE_LIMIT;
+    motor.PID_current_d.limit = DRIVER_VOLTAGE_LIMIT_V;
 
     // Low-pass filters on measured currents (this helps reduce the noise in the current loop)
     motor.LPF_current_q.Tf = 0.5f; // change these as u wish

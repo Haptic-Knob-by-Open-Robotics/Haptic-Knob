@@ -41,14 +41,11 @@ static bool setupDriver();
 static bool setupExternalAdc();
 static bool setupMotor();
 
-
 static SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 static ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-static InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+static InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 static BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 static BLDCMotor motor(POLE_PAIRS);
-
-
 
 bool initHardware()
 {
@@ -80,8 +77,6 @@ bool initHardware()
     return true;
 }
 
-
-
 // Current Sense Setup
 static bool setupCurrentSense()
 {
@@ -95,7 +90,7 @@ static bool setupCurrentSense()
     }
 
     Serial.print("Aligning current sense w driver  ");
-    if (!current_sense.driverAlign(VOLTAGE_LIMIT))
+    if (!current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V))
     {
         Serial.println("FAILED");
         return false;
@@ -104,7 +99,6 @@ static bool setupCurrentSense()
     Serial.println("SUCCESSFUL current sense setup");
     return true;
 }
-
 
 void updateHardwareControlStep()
 {
@@ -178,8 +172,8 @@ static bool setupDriver()
     // TODO: init driver
     driver.pwm_frequency = 30e3;
     driver.dead_zone = 0.05f;
-    driver.voltage_power_supply = VOLTAGE_SUPPLY;
-    driver.voltage_limit = VOLTAGE_LIMIT;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+    driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
 
     Serial.print("Initializing motor driver");
     if (!driver.init())
@@ -190,7 +184,7 @@ static bool setupDriver()
 
     driver.enable();
     Serial.println("SUCCESSFUL driver setup");
-    
+
     return true;
 }
 
@@ -213,19 +207,19 @@ static bool setupMotor()
     motor.controller = MotionControlType::torque;
     motor.torque_controller = TorqueControlType::foc_current;
     // - configure limits
-    motor.voltage_limit = VOLTAGE_LIMIT;
-    motor.current_limit = CURRENT_LIMIT; 
+    motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
+    motor.current_limit = DRIVER_CURRENT_LIMIT_A;
 
-    // default PID gains 
-    motor.PID_current_q.P = 2.0f;
-    motor.PID_current_q.I = 200.0f;
-    motor.PID_current_q.D = 0.0f;
-    motor.PID_current_q.limit = VOLTAGE_LIMIT;
+    // default PID gains
+    motor.PID_current_q.P = 10.0f;
+    motor.PID_current_q.I = 150.0f;
+    motor.PID_current_q.D = 0.0001f;
+    motor.PID_current_q.limit = DRIVER_CURRENT_LIMIT_A;
 
-    motor.PID_current_d.P = 2.0f;
-    motor.PID_current_d.I = 200.0f;
-    motor.PID_current_d.D = 0.0f;
-    motor.PID_current_d.limit = VOLTAGE_LIMIT;
+    motor.PID_current_d.P = 10.0f;
+    motor.PID_current_d.I = 150.0f;
+    motor.PID_current_d.D = 0.0001f;
+    motor.PID_current_d.limit = DRIVER_CURRENT_LIMIT_A;
 
     // filter measured current noise a bit
     motor.LPF_current_q.Tf = 0.002f;

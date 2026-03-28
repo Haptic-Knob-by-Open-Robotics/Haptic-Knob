@@ -6,7 +6,7 @@
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -19,8 +19,7 @@ void printData()
       target_angle,
       motor.shaft_angle,
       motor.shaft_angle * 180.0f / _PI,
-      motor.shaft_velocity
-  );
+      motor.shaft_velocity);
 }
 
 void setup()
@@ -35,8 +34,8 @@ void setup()
   encoder.init(spiBus.bus());
   Serial.println("Encoder initialized");
 
-  driver.voltage_power_supply = VOLTAGE_SUPPLY;
-  driver.voltage_limit = VOLTAGE_LIMIT;
+  driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+  driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
   driver.pwm_frequency = 30000;
   driver.dead_zone = 0.05f;
 
@@ -44,7 +43,9 @@ void setup()
   if (!driver.init())
   {
     Serial.println("FAILED");
-    while (1) {}
+    while (1)
+    {
+    }
   }
   Serial.println("done");
 
@@ -55,7 +56,7 @@ void setup()
   motor.controller = MotionControlType::angle;
   motor.torque_controller = TorqueControlType::voltage;
 
-  motor.voltage_limit = VOLTAGE_LIMIT;
+  motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
   motor.velocity_limit = 20.0f;
   motor.voltage_sensor_align = 4.0f;
 
@@ -76,19 +77,20 @@ void setup()
   motor.init();
   Serial.println("done");
 
-
   Serial.print("FOC init... ");
   if (!motor.initFOC())
   {
     Serial.println("FAILED");
-    while (1) {}
+    while (1)
+    {
+    }
   }
   Serial.println("done");
 
   delay(200);
 
   // Hold whatever angle the motor is currently at
-  target_angle = motor.shaft_angle+0.5f;
+  target_angle = motor.shaft_angle + 0.5f;
 
   Serial.print("Target angle set to: ");
   Serial.println(target_angle, 4);

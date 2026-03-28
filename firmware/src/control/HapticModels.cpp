@@ -27,8 +27,6 @@
       - HapticModels.cpp decides what command should be sent
 */
 
-
-
 /*
     Do NOT:
     - call encoder.update()
@@ -36,20 +34,18 @@
     - call motor.move()
 */
 
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 static float clampf(float val, float minVal, float maxVal)
 {
-    if (val < minVal) return minVal;
-    if (val > maxVal) return maxVal;
+    if (val < minVal)
+        return minVal;
+    if (val > maxVal)
+        return maxVal;
     return val;
 }
 
-void computeResistorCommand(const MeasuredState& measured,
-                            const RuntimeConfig& config,
-                            HapticCommand& command)
+void computeResistorCommand(const MeasuredState &measured,
+                            const RuntimeConfig &config,
+                            HapticCommand &command)
 {
     // TODO:
     // 1. compute torque opposing velocity
@@ -60,21 +56,21 @@ void computeResistorCommand(const MeasuredState& measured,
     // 3. clamp current
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
 <<<<<<< Updated upstream
-=======
-    // 4. set use_voltage_mode = false
-    command.use_voltage_mode = false;
+    == == == =
+                 // 4. set use_voltage_mode = false
+        command.use_voltage_mode = false;
 >>>>>>> Stashed changes
     command.iq_cmd = iqCmd;
     command.last_update_us = micros();
 }
 
 <<<<<<< Updated upstream
-=======
+== == == =
 
 >>>>>>> Stashed changes
-void computeCapacitorCommand(const MeasuredState& measured,
-                             const RuntimeConfig& config,
-                             HapticCommand& command)
+             void computeCapacitorCommand(const MeasuredState &measured,
+                                          const RuntimeConfig &config,
+                                          HapticCommand &command)
 {
     // TODO:
     // 1. compute displacement from theta_origin
@@ -88,10 +84,10 @@ void computeCapacitorCommand(const MeasuredState& measured,
 
 <<<<<<< Updated upstream
     // Velocity deadband
-=======
-    // velocity deadband
+    == == == =
+                 // velocity deadband
 >>>>>>> Stashed changes
-    if (fabsf(omega) < 0.15f)
+        if (fabsf(omega) < 0.15f)
     {
         omega = 0.0f;
     }
@@ -101,11 +97,9 @@ void computeCapacitorCommand(const MeasuredState& measured,
 
     // Spring-damper torque
 <<<<<<< Updated upstream
-    float torqueCmd = -config.k_virtual * displacement
-                      -config.b_virtual * omega;
-=======
-    float torqueCmd = -config.K_virtual * displacement
-                      -config.B_virtual * omega;
+    float torqueCmd = -config.k_virtual * displacement - config.b_virtual * omega;
+    == == == =
+                 float torqueCmd = -config.K_virtual * displacement - config.B_virtual * omega;
 >>>>>>> Stashed changes
 
     // Clamp torque to actuator limit
@@ -119,18 +113,18 @@ void computeCapacitorCommand(const MeasuredState& measured,
 
 <<<<<<< Updated upstream
     command.iq_cmd = iqCmd;
-=======
-    //Output command
-    command.use_voltage_mode = false;
+    == == == =
+                 // Output command
+        command.use_voltage_mode = false;
     command.iq_cmd = iqCmd;
     command.v_cmd = 0.0f;
 >>>>>>> Stashed changes
     command.last_update_us = micros();
 }
 
-void computeInductorCommand(const MeasuredState& measured,
-                            const RuntimeConfig& config,
-                            HapticCommand& command)
+void computeInductorCommand(const MeasuredState &measured,
+                            const RuntimeConfig &config,
+                            HapticCommand &command)
 {
     // TODO:
     // 1. use measured acceleration
@@ -147,7 +141,7 @@ void computeInductorCommand(const MeasuredState& measured,
         omega = 0.0f;
     }
     // 2. compute inertial / inductive torque
-    float torqueCmd = -config.virtual_inductance *alpha - config.INDUCTOR_DAMPING * omega;
+    float torqueCmd = -config.virtual_inductance * alpha - config.INDUCTOR_DAMPING * omega;
     torqueCmd = clampf(torqueCmd, -config.MAX_TORQUE, config.MAX_TORQUE);
     // 3. convert torque -> iq_cmd
     float iqCmd = torqueCmd / config.TORQUE_CONST;
@@ -160,12 +154,11 @@ void computeInductorCommand(const MeasuredState& measured,
     }
     command.iq_cmd = iqCmd;
     command.last_update_us = micros();
-
 }
 
-void computeDiodeCommand(const MeasuredState& measured,
-                         const RuntimeConfig& config,
-                         HapticCommand& command)
+void computeDiodeCommand(const MeasuredState &measured,
+                         const RuntimeConfig &config,
+                         HapticCommand &command)
 {
     // TODO:
     // 1. apply asymmetric direction logic
@@ -182,14 +175,15 @@ void computeDiodeCommand(const MeasuredState& measured,
     // 3. clamp c
     iqCmd = clampf(iqCmd, -config.MAX_CURRENT, config.MAX_CURRENT);
     command.iq_cmd = iqCmd;
-=======
-    float vCmd = 0.0f;
-    if (measured.velocity_rad_s >config.diode_threshold){
+    == == == =
+                 float vCmd = 0.0f;
+    if (measured.velocity_rad_s > config.diode_threshold)
+    {
         vCmd = -config.diode_gain * measured.velocity_rad_s;
     }
     // 2. compute voltage command
     // 3. clamp voltage
-     vCmd = clampf(vCmd, -MAX_VOLTAGE, 0.0f);
+    vCmd = clampf(vCmd, -MAX_VOLTAGE, 0.0f);
     // 4. set use_voltage_mode = true
     command.use_voltage_mode = true;
     command.iq_cmd = 0.0f;
@@ -198,9 +192,9 @@ void computeDiodeCommand(const MeasuredState& measured,
     command.last_update_us = micros();
 }
 
-void computeRLCCommand(const MeasuredState& measured,
-                         const RuntimeConfig& config,
-                         HapticCommand& command)
+void computeRLCCommand(const MeasuredState &measured,
+                       const RuntimeConfig &config,
+                       HapticCommand &command)
 {
     // TODO:
     // 1. apply asymmetric direction logic
@@ -208,8 +202,8 @@ void computeRLCCommand(const MeasuredState& measured,
     // 3. clamp voltage
 
     // Virtual circuit states
-    static float i_virtual  = 0.0f;   // virtual circuit current
-    static float vc_virtual = 0.0f;   // virtual capacitor voltage
+    static float i_virtual = 0.0f;  // virtual circuit current
+    static float vc_virtual = 0.0f; // virtual capacitor voltage
     static uint32_t lastModelUpdateUs = 0;
 
     // Compute dt from measured timestamp
@@ -236,8 +230,8 @@ void computeRLCCommand(const MeasuredState& measured,
     float vin = config.INPUT_GAIN * omega;
 
     // Read virtual RLC parameters from config
-    float R = config.virtual_resistance;     
-    float L = config.virtual_inductance;   
+    float R = config.virtual_resistance;
+    float L = config.virtual_inductance;
     float C = config.virtual_capacitance;
 
     // Prevent divide-by-zero / unstable params
@@ -247,14 +241,14 @@ void computeRLCCommand(const MeasuredState& measured,
     //    Virtual series RLC state equations
     //    di/dt  = (vin - R*i - vc) / L
     //    dvc/dt = i / C
-    float di_dt  = (vin - R * i_virtual - vc_virtual) / L;
+    float di_dt = (vin - R * i_virtual - vc_virtual) / L;
     float dvc_dt = i_virtual / C;
 
-    i_virtual  += di_dt * dt;
+    i_virtual += di_dt * dt;
     vc_virtual += dvc_dt * dt;
 
     // Clamp virtual states for robustness
-    i_virtual  = clampf(i_virtual,  -config.MAX_STATE_ABS, config.MAX_STATE_ABS);
+    i_virtual = clampf(i_virtual, -config.MAX_STATE_ABS, config.MAX_STATE_ABS);
     vc_virtual = clampf(vc_virtual, -config.MAX_STATE_ABS, config.MAX_STATE_ABS);
 
     // Map virtual current to motor torque
@@ -270,28 +264,28 @@ void computeRLCCommand(const MeasuredState& measured,
     command.last_update_us = micros();
 }
 
-void computeActiveModelCommand(const MeasuredState& measured,
-                               const RuntimeConfig& config,
-                               HapticCommand& command)
+void computeActiveModelCommand(const MeasuredState &measured,
+                               const RuntimeConfig &config,
+                               HapticCommand &command)
 {
-    switch(config.active_mode)
+    switch (config.active_mode)
     {
-        case HapticMode::Resistor:
-            computeResistorCommand(measured, config, command);
-            break;
-        case HapticMode::Capacitor:
-            computeCapacitorCommand(measured, config, command);
-            break;
-        case HapticMode::Inductor:
-            computeInductorCommand(measured, config, command);
-            break;
-        case HapticMode::Diode:
-            computeDiodeCommand(measured, config, command);
-            break;
-        case HapticMode::RLC:
-            computeRLCCommand(measured, config, command);
-            break;
-        default:
-            break;
+    case HapticMode::Resistor:
+        computeResistorCommand(measured, config, command);
+        break;
+    case HapticMode::Capacitor:
+        computeCapacitorCommand(measured, config, command);
+        break;
+    case HapticMode::Inductor:
+        computeInductorCommand(measured, config, command);
+        break;
+    case HapticMode::Diode:
+        computeDiodeCommand(measured, config, command);
+        break;
+    case HapticMode::RLC:
+        computeRLCCommand(measured, config, command);
+        break;
+    default:
+        break;
     }
 }

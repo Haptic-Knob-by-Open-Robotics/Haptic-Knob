@@ -6,7 +6,7 @@
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
@@ -29,8 +29,8 @@ void setup()
     encoder.init(spiBus.bus());
     Serial.println("Encoder initialized!");
 
-    driver.voltage_power_supply = VOLTAGE_SUPPLY;
-    driver.voltage_limit = VOLTAGE_LIMIT;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+    driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
     driver.pwm_frequency = 30000;
     driver.dead_zone = 0.05f;
     if (!driver.init())
@@ -57,7 +57,7 @@ void setup()
 
     motor.controller = MotionControlType::torque;
     motor.torque_controller = TorqueControlType::voltage; // no PI tuning needed
-    motor.voltage_limit = VOLTAGE_LIMIT;
+    motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
     motor.voltage_sensor_align = 1.0f;
     motor.LPF_velocity.Tf = 0.15f; // smooth velocity estimate
 

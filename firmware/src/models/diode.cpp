@@ -7,19 +7,19 @@
 // Hardware
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
-InlineCurrentSense current_sense(SHUNT_RESISTOR, AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 BLDCMotor motor(POLE_PAIRS);
 
 // Model Parameters
-static constexpr float TORQUE_CONST = 0.035f;   // N*m/A
-static constexpr float MAX_TORQUE   = 0.12f;
-static constexpr float MAX_CURRENT  = 2.0f;
+static constexpr float TORQUE_CONST = 0.035f; // N*m/A
+static constexpr float MAX_TORQUE = 0.12f;
+static constexpr float MAX_CURRENT = 2.0f;
 
 // Diode mode parameters
 // Current logic: resist only when omega > threshold
-static float DIODE_THRESHOLD = 0.10f;   // rad/s
-static float DIODE_B         = 0.020f;  // N*m / (rad/s)
+static float DIODE_THRESHOLD = 0.10f; // rad/s
+static float DIODE_B = 0.020f;        // N*m / (rad/s)
 
 // Filters
 LowPassFilter velocityFilter(0.03f);
@@ -30,8 +30,10 @@ static uint32_t lastPrint = 0;
 // Helper functions
 static float clampf(float val, float minVal, float maxVal)
 {
-    if (val < minVal) return minVal;
-    if (val > maxVal) return maxVal;
+    if (val < minVal)
+        return minVal;
+    if (val > maxVal)
+        return maxVal;
     return val;
 }
 
@@ -46,11 +48,13 @@ String readLineFromSerial()
         }
 
         char c = Serial.read();
-        if (c == '\r') continue;
+        if (c == '\r')
+            continue;
 
         if (c == '\n')
         {
-            if (input.length() > 0) return input;
+            if (input.length() > 0)
+                return input;
         }
         else
         {
@@ -98,7 +102,8 @@ void handleIncomingCommands()
     {
         char c = (char)Serial.read();
 
-        if (c == '\r') continue;
+        if (c == '\r')
+            continue;
 
         if (c == '\n')
         {
@@ -159,8 +164,8 @@ bool driverSetup()
 {
     driver.pwm_frequency = 30e3;
     driver.dead_zone = 0.05f;
-    driver.voltage_power_supply = VOLTAGE_SUPPLY;
-    driver.voltage_limit = VOLTAGE_LIMIT;
+    driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+    driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
 
     Serial.print("Initializing motor driver  ");
     if (!driver.init())
@@ -187,7 +192,7 @@ bool currentSenseSetup()
     }
 
     Serial.print("Aligning current sense w driver  ");
-    if (!current_sense.driverAlign(VOLTAGE_LIMIT))
+    if (!current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V))
     {
         Serial.println("FAILED");
         return false;
@@ -207,7 +212,7 @@ bool motorSetup()
     motor.controller = MotionControlType::torque;
     motor.torque_controller = TorqueControlType::foc_current;
 
-    motor.voltage_limit = VOLTAGE_LIMIT;
+    motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
     motor.current_limit = MAX_CURRENT;
 
     float PID_Constants[6];
@@ -216,12 +221,12 @@ bool motorSetup()
     motor.PID_current_q.P = PID_Constants[0];
     motor.PID_current_q.I = PID_Constants[1];
     motor.PID_current_q.D = PID_Constants[2];
-    motor.PID_current_q.limit = VOLTAGE_LIMIT;
+    motor.PID_current_q.limit = DRIVER_VOLTAGE_LIMIT_V;
 
     motor.PID_current_d.P = PID_Constants[3];
     motor.PID_current_d.I = PID_Constants[4];
     motor.PID_current_d.D = PID_Constants[5];
-    motor.PID_current_d.limit = VOLTAGE_LIMIT;
+    motor.PID_current_d.limit = DRIVER_VOLTAGE_LIMIT_V;
 
     motor.LPF_current_q.Tf = 0.05f;
     motor.LPF_current_d.Tf = 0.05f;
@@ -281,17 +286,23 @@ void setup()
 
     if (!driverSetup())
     {
-        while (true) {}
+        while (true)
+        {
+        }
     }
 
     if (!currentSenseSetup())
     {
-        while (true) {}
+        while (true)
+        {
+        }
     }
 
     if (!motorSetup())
     {
-        while (true) {}
+        while (true)
+        {
+        }
     }
 
     Serial.println("System ready.");
@@ -311,9 +322,9 @@ void loop()
     motor.loopFOC();
 
     // Read and filter knob motion
-    float theta  = encoder.getAngle();
+    float theta = encoder.getAngle();
     float rawVel = encoder.getVelocity();
-    float omega  = velocityFilter(rawVel);
+    float omega = velocityFilter(rawVel);
 
     if (fabsf(omega) < 0.15f)
         omega = 0.0f;
@@ -345,7 +356,6 @@ void loop()
             torqueCmd,
             iqCmd,
             motor.current.q,
-            currents.a, currents.b, currents.c
-        );
+            currents.a, currents.b, currents.c);
     }
 }
