@@ -49,15 +49,15 @@ struct CurrentLoopPID
 
 struct RuntimeConfig
 {
-    HapticMode active_mode = HapticMode::Resistor;
+    HapticMode active_mode = HapticMode::Capacitor;
 
     CurrentLoopPID resistor_pid = {
         {10.0f, 150.0f, 0.0001f},
         {10.0f, 150.0f, 0.0001f}};
 
     CurrentLoopPID capacitor_pid = {
-        {3.0f, 300.0f, 0.0f},
-        {3.0f, 300.0f, 0.0f}};
+        {5.0f, 35.0f, 0.0001f},
+        {5.0f, 35.0f, 0.0001f}};
 
     CurrentLoopPID inductor_pid = {
         {3.0f, 300.0f, 0.0f},

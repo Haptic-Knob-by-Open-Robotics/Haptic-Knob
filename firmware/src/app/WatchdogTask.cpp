@@ -1,14 +1,11 @@
-/*
-    WatchdogTask.cpp
+#include "app/WatchdogTask.h"
 
-    This file implements the watchdog/safety supervision task.
+#include <Arduino.h>
+#include <cmath>
 
-    Main responsibilities:
-      - check whether measured state is still updating
-      - check whether model commands are still updating
-      - detect stale or invalid data
-      - raise a fault flag if something is wrong
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-    When a fault is raised, the motor task can use that information to stop
-    applying torque and bring the system to a safe state.
-*/
+#include "app/Config.h"
+#include "app/Faults.h"
+#include "app/SharedState.h"
