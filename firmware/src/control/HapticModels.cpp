@@ -1,9 +1,14 @@
 #include "control/HapticModels.h"
 
 #include <Arduino.h>
+#include <SimpleFOC.h>
+
 #include <cmath>
 
 #include "app/Config.h"
+
+LowPassFilter velocityFilter(0.03f);
+
 
 namespace
 {
@@ -41,15 +46,14 @@ void computeCapacitorCommand(const MeasuredState &measured,
 {
     static float filteredOmega = 0.0f;
     float theta = measured.angle_rad;
-    
-    filteredOmega += 0.15f * (measured.velocity_rad_s - filteredOmega);
-    float omega = filteredOmega;
+    float omega = velocityFilter(measured.velocity_rad_s);
+  
 
-
-    if (fabsf(omega) < 0.05f)
+    if (fabsf(omega) < 0.15f)
     {
         omega = 0.0f;
     }
+    
     const float displacement = theta - config.theta_origin;
     float torqueCmd = -config.k_virtual * displacement - config.b_virtual * omega;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);

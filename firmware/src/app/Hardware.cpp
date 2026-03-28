@@ -323,7 +323,8 @@ float getMotorAngleDegWrapped()
 
 float getMotorVelocityRad()
 {
-    return motor.shaftVelocity();
+    // return motor.shaftVelocity();
+    return encoder.getVelocity();
 }
 
 float getMeasuredIq()
