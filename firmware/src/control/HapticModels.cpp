@@ -39,14 +39,17 @@ void computeCapacitorCommand(const MeasuredState &measured,
                              const RuntimeConfig &config,
                              HapticCommand &command)
 {
+    static float filteredOmega = 0.0f;
     float theta = measured.angle_rad;
-    float omega = measured.velocity_rad_s;
+    
+    filteredOmega += 0.15f * (measured.velocity_rad_s - filteredOmega);
+    float omega = filteredOmega;
 
-    if (fabsf(omega) < 0.15f)
+
+    if (fabsf(omega) < 0.05f)
     {
         omega = 0.0f;
     }
-    printf("omega");
     const float displacement = theta - config.theta_origin;
     float torqueCmd = -config.k_virtual * displacement - config.b_virtual * omega;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);

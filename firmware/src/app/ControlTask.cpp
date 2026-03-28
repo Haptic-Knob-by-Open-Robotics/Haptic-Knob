@@ -419,8 +419,12 @@ void controlTask(void *pvParameters)
 
         if (shouldDrive)
         {
-            // printf("Should be driving");
+            // // printf("Should be driving");
             applyMotorCurrent(heldCommand.iq_cmd);
+            // static float filteredIqCmd = 0.0f;
+            // filteredIqCmd += 0.08f * (heldCommand.iq_cmd - filteredIqCmd);
+            // applyMotorCurrent(filteredIqCmd);
+
         }
         else
         {
