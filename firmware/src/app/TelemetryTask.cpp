@@ -16,6 +16,7 @@
 
 #include <Arduino.h>
 #include <cstring>
+#include <inttypes.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -119,10 +120,11 @@ void printStatus()
     readHapticCommand(command);
 
     Serial.printf(
-        "mode=%s enabled=%d fault=%d angle=%.4f vel=%.4f accel=%.4f iq_cmd=%.4f iq_meas=%.4f\n",
+        "mode=%s enabled=%d fault=%d fault_bits=0x%08" PRIx32 " angle=%.4f vel=%.4f accel=%.4f iq_cmd=%.4f iq_meas=%.4f\n",
         modeToString(config.active_mode),
         systemState.control_enabled ? 1 : 0,
         systemState.fault_latched ? 1 : 0,
+        systemState.fault_bits,
         measured.angle_rad,
         measured.velocity_rad_s,
         measured.acceleration_rad_s2,

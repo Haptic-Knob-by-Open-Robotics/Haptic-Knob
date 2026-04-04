@@ -56,8 +56,8 @@ struct RuntimeConfig
         {10.0f, 150.0f, 0.0001f}};
 
     CurrentLoopPID capacitor_pid = {
-        {5.0f, 35.0f, 0.0001f},
-        {5.0f, 35.0f, 0.0001f}};
+        {100.0f, 35.0f, 0.0001f},
+        {100.0f, 35.0f, 0.0001f}};
 
     CurrentLoopPID inductor_pid = {
         {3.0f, 300.0f, 0.0f},

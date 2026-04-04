@@ -248,8 +248,7 @@ void controlTask(void *pvParameters)
         //   1. control has been enabled by the system, and
         //   2. no fault is currently latched
         // If either is false, we go into safe behavior later in the loop.
-        // for now we set this to 1 manually to test but it shoudl be flags.control_enabled && !flags.fault_latched;
-        const bool shouldDrive = 1; 
+        const bool shouldDrive = flags.control_enabled && !flags.fault_latched;
 
         // 4. RUN THE FAST HARDWARE / MOTOR CONTROL STEP
         //   - sensor update / sampling
