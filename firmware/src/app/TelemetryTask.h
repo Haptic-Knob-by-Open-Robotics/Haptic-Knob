@@ -8,5 +8,9 @@
     This task is responsible for user interaction and debugging output.
 */
 
-void TelemetryTask(void* pvParameters);
+void TelemetryTask(void *pvParameters);
 void startTelemetryTask();
+static void processIncomingSerialCommands();
+void handleCommandLine();
+void sendTelemetryLine();
+void sendHelpMenu();
