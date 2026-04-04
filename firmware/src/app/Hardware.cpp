@@ -4,48 +4,50 @@
 #include <SPI.h>
 #include <SimpleFOC.h>
 
+#include "drivers/MCP3204.h"
 #include "app/Config.h"
 #include "drivers/ModifiedMagneticSensorMT6701SSI.h"
+
+SPIClass spiADC(1); // for MCP3204
+SPIClass spiENC(2); // for encoder
 
 namespace
 {
 
-bool setupCurrentSense();
-bool setupDriver();
-bool setupMotor();
+    bool setupCurrentSense();
+    bool setupDriver();
+    bool setupMotor();
 
-// ========== GLOBAL HARDWARE OBJECTS ==========
-// These are the core hardware/control objects used by the system.
-//
-// encoder:
-//   Magnetic shaft encoder used to measure the motor/knob angle.
-//
-// current_sense:
-//   Reads motor phase currents through the inline current sensing
-//   hardware so FOC current control can work.
-//
-// driver:
-//   6-PWM BLDC gate driver interface. This is what actually outputs
-//   the PWM signals to the motor driver hardware.
-//
-// motor:
-//   SimpleFOC motor object that performs the control-side logic
-//   (FOC, torque/current control, velocity estimation, etc.).
-//
-// These are placed in an anonymous namespace so they stay local
-// to this translation unit (this .cpp file).
-ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+    // ========== GLOBAL HARDWARE OBJECTS ==========
+    // These are the core hardware/control objects used by the system.
+    //
+    // encoder:
+    //   Magnetic shaft encoder used to measure the motor/knob angle.
+    //
+    // current_sense:
+    //   Reads motor phase currents through the inline current sensing
+    //   hardware so FOC current control can work.
+    //
+    // driver:
+    //   6-PWM BLDC gate driver interface. This is what actually outputs
+    //   the PWM signals to the motor driver hardware.
+    //
+    // motor:
+    //   SimpleFOC motor object that performs the control-side logic
+    //   (FOC, torque/current control, velocity estimation, etc.).
+    //
+    // These are placed in an anonymous namespace so they stay local
+    // to this translation unit (this .cpp file).
+    ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CSN);
 
-InlineCurrentSense current_sense(
-    SHUNT_RESISTOR_OHM,
-    CURRENT_SENSE_AMP_GAIN,
-    PIN_I_A,
-    PIN_I_B,
-    PIN_I_C);
+    MCP3204CurrentSense current_sense(&spiADC,
+                                      PIN_ADC_CSN, CURRENT_SENSE_VREF,
+                                      CURRENT_SENSE_SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN,
+                                      ADC_CH_U, ADC_CH_V, ADC_CH_W);
 
-BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
+    BLDCDriver6PWM driver(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL);
 
-BLDCMotor motor(POLE_PAIRS);
+    BLDCMotor motor(POLE_PAIRS);
 }
 
 // ========= TOP-LEVEL HARDWARE INIT =========
@@ -69,11 +71,12 @@ bool initHardware()
     //
     // We pass the encoder chip-select pin as the SS argument so the SPI
     // peripheral is configured consistently with our setup.
-    SPI.begin(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_ENC_CS);
+    spiADC.begin(PIN_SPI_CLK_1, PIN_SPI_MISO_1, PIN_SPI_MOSI_1, PIN_ADC_CSN);
+    spiENC.begin(PIN_SPI_CLK_2, PIN_SPI_MISO_2, PIN_SPI_MOSI_2, PIN_ENC_CSN);
 
     // Initialize the encoder and attach it to the SPI bus we just started.
     // After this, the encoder object can begin reading shaft angle data.
-    encoder.init(&SPI);
+    encoder.init(&spiENC);
 
     // Bring up the power driver first.
     // If this fails, nothing else should continue.
@@ -212,169 +215,168 @@ void setCurrentPidGains(float qp, float qi, float qd,
 namespace
 {
 
-// ========== CURRENT SENSE INITIALIZATION =========
-//
-// This function sets up inline current sensing and aligns it with
-// the motor driver.
-//
-// Why this matters:
-// FOC current control depends on accurate current measurements.
-// If current sense is not initialized or aligned correctly,
-// torque/current control will not behave properly.
-//
-bool setupCurrentSense()
-{
-    // Tell the current sense object which driver it is associated with.
-    // This lets SimpleFOC coordinate current sensing with the driver state.
-    current_sense.linkDriver(&driver);
-
-    Serial.print("Initializing current sense... ");
-    if (!current_sense.init())
-    {
-        Serial.println("FAILED");
-        return false;
-    }
-
-    // Align the sensed current channels with the driver/phases.
+    // ========== CURRENT SENSE INITIALIZATION =========
     //
-    // This step helps SimpleFOC determine whether the current sensing
-    // orientation/sign mapping is correct for the configured hardware.
-    Serial.print("Aligning current sense... ");
-    if (!current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V))
-    {
-        Serial.println("FAILED");
-        return false;
-    }
-
-    Serial.println("OK");
-    return true;
-}
-
-// =========  DRIVER INITIALIZATION =========
-//
-// This configures the 6-PWM BLDC driver object.
-//
-// Key settings:
-// pwm_frequency:
-//   PWM switching frequency for the motor phases.
-//
-// dead_zone:
-//   Dead time / dead zone to reduce shoot-through risk in complementary
-//   switching situations.
-//
-// voltage_power_supply:
-//   Actual DC supply voltage available to the driver.
-//
-// voltage_limit:
-//   Software-imposed voltage limit used by the control library.
-//
-bool setupDriver()
-{
-    // Set PWM switching frequency.
-    // 30 kHz is high enough to move switching noise well above
-    // much of the audible range and is a common choice.
-    driver.pwm_frequency = 30000;
-
-    // Small dead zone to help avoid overlap between high-side and low-side
-    // switching transitions.
-    driver.dead_zone = 0.05f;
-
-    // Supply voltage feeding the motor driver stage.
-    driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
-
-    // Software voltage limit for the driver.
-    driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
-
-    Serial.print("Initializing motor driver... ");
-    if (!driver.init())
-    {
-        Serial.println("FAILED");
-        return false;
-    }
-
-    // Enable the driver after successful initialization.
-    driver.enable();
-
-    Serial.println("OK");
-    return true;
-}
-
-// ========= MOTOR / FOC INITIALIZATION ==========
-//
-// This function links together the motor, driver, encoder,
-// and current sensing objects, then configures the control mode
-// and controller gains before starting FOC.
-//
-// High-level flow:
-//
-//   1. link hardware objects to motor
-//   2. choose torque/current control mode
-//   3. set safety/control limits
-//   4. configure current-loop PID gains + LPFs
-//   5. initialize motor object
-//   6. initialize FOC
-//
-bool setupMotor()
-{
-    // Link the motor object to the already-created driver, encoder,
-    // and current sensing blocks.
-    motor.linkDriver(&driver);
-    motor.linkSensor(&encoder);
-    motor.linkCurrentSense(&current_sense);
-
-    // We want torque control at the high level.
+    // This function sets up inline current sensing and aligns it with
+    // the motor driver.
     //
-    // Combined with foc_current below, this means our commands are
-    // essentially current-based torque requests.
-    motor.controller = MotionControlType::torque;
-    motor.torque_controller = TorqueControlType::foc_current;
-
-    // Apply software safety/control limits.
-    motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
-    motor.current_limit = DRIVER_CURRENT_LIMIT_A;
-
-    // q-axis current controller gains
-    // The q-axis current loop is the main torque-producing loop.
-    motor.PID_current_q.P = 10.0f;
-    motor.PID_current_q.I = 150.0f;
-    motor.PID_current_q.D = 0.0001f;
-    motor.PID_current_q.limit = DRIVER_CURRENT_LIMIT_A;
-
-
-    // d-axis current controller gains
-    // The d-axis loop typically regulates the orthogonal current component.
-    // In many cases we try to keep this component near zero.
-    motor.PID_current_d.P = 10.0f;
-    motor.PID_current_d.I = 150.0f;
-    motor.PID_current_d.D = 0.0001f;
-    motor.PID_current_d.limit = DRIVER_CURRENT_LIMIT_A;
-
-    // Low-pass filtering of measured currents
-    // These filters help smooth noisy current measurements before they
-    // are used by the current controllers.
-    motor.LPF_current_q.Tf = 0.002f;
-    motor.LPF_current_d.Tf = 0.002f;
-
-    Serial.print("Initializing motor... ");
-    if (!motor.init())
-    {
-        Serial.println("FAILED");
-        return false;
-    }
-
-    // Initialize FOC after the motor object and all linked hardware
-    // have been configured.
+    // Why this matters:
+    // FOC current control depends on accurate current measurements.
+    // If current sense is not initialized or aligned correctly,
+    // torque/current control will not behave properly.
     //
-    // This step typically performs the control-side startup/alignment
-    // required before normal closed-loop operation.
-    Serial.print("Initializing FOC... ");
-    if (!motor.initFOC())
+    bool setupCurrentSense()
     {
-        Serial.println("FAILED");
-        return false;
+        // Tell the current sense object which driver it is associated with.
+        // This lets SimpleFOC coordinate current sensing with the driver state.
+        current_sense.linkDriver(&driver);
+
+        Serial.print("Initializing current sense... ");
+        if (!current_sense.init())
+        {
+            Serial.println("FAILED");
+            return false;
+        }
+
+        // Align the sensed current channels with the driver/phases.
+        //
+        // This step helps SimpleFOC determine whether the current sensing
+        // orientation/sign mapping is correct for the configured hardware.
+        Serial.print("Aligning current sense... ");
+        if (!current_sense.driverAlign(DRIVER_VOLTAGE_LIMIT_V))
+        {
+            Serial.println("FAILED");
+            return false;
+        }
+
+        Serial.println("OK");
+        return true;
     }
 
-    Serial.println("OK");
-    return true;
-}
+    // =========  DRIVER INITIALIZATION =========
+    //
+    // This configures the 6-PWM BLDC driver object.
+    //
+    // Key settings:
+    // pwm_frequency:
+    //   PWM switching frequency for the motor phases.
+    //
+    // dead_zone:
+    //   Dead time / dead zone to reduce shoot-through risk in complementary
+    //   switching situations.
+    //
+    // voltage_power_supply:
+    //   Actual DC supply voltage available to the driver.
+    //
+    // voltage_limit:
+    //   Software-imposed voltage limit used by the control library.
+    //
+    bool setupDriver()
+    {
+        // Set PWM switching frequency.
+        // 30 kHz is high enough to move switching noise well above
+        // much of the audible range and is a common choice.
+        driver.pwm_frequency = 30000;
+
+        // Small dead zone to help avoid overlap between high-side and low-side
+        // switching transitions.
+        driver.dead_zone = 0.05f;
+
+        // Supply voltage feeding the motor driver stage.
+        driver.voltage_power_supply = VOLTAGE_SUPPLY_V;
+
+        // Software voltage limit for the driver.
+        driver.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
+
+        Serial.print("Initializing motor driver... ");
+        if (!driver.init())
+        {
+            Serial.println("FAILED");
+            return false;
+        }
+
+        // Enable the driver after successful initialization.
+        driver.enable();
+
+        Serial.println("OK");
+        return true;
+    }
+
+    // ========= MOTOR / FOC INITIALIZATION ==========
+    //
+    // This function links together the motor, driver, encoder,
+    // and current sensing objects, then configures the control mode
+    // and controller gains before starting FOC.
+    //
+    // High-level flow:
+    //
+    //   1. link hardware objects to motor
+    //   2. choose torque/current control mode
+    //   3. set safety/control limits
+    //   4. configure current-loop PID gains + LPFs
+    //   5. initialize motor object
+    //   6. initialize FOC
+    //
+    bool setupMotor()
+    {
+        // Link the motor object to the already-created driver, encoder,
+        // and current sensing blocks.
+        motor.linkDriver(&driver);
+        motor.linkSensor(&encoder);
+        motor.linkCurrentSense(&current_sense);
+
+        // We want torque control at the high level.
+        //
+        // Combined with foc_current below, this means our commands are
+        // essentially current-based torque requests.
+        motor.controller = MotionControlType::torque;
+        motor.torque_controller = TorqueControlType::foc_current;
+
+        // Apply software safety/control limits.
+        motor.voltage_limit = DRIVER_VOLTAGE_LIMIT_V;
+        motor.current_limit = DRIVER_CURRENT_LIMIT_A;
+
+        // q-axis current controller gains
+        // The q-axis current loop is the main torque-producing loop.
+        motor.PID_current_q.P = 10.0f;
+        motor.PID_current_q.I = 150.0f;
+        motor.PID_current_q.D = 0.0001f;
+        motor.PID_current_q.limit = DRIVER_CURRENT_LIMIT_A;
+
+        // d-axis current controller gains
+        // The d-axis loop typically regulates the orthogonal current component.
+        // In many cases we try to keep this component near zero.
+        motor.PID_current_d.P = 10.0f;
+        motor.PID_current_d.I = 150.0f;
+        motor.PID_current_d.D = 0.0001f;
+        motor.PID_current_d.limit = DRIVER_CURRENT_LIMIT_A;
+
+        // Low-pass filtering of measured currents
+        // These filters help smooth noisy current measurements before they
+        // are used by the current controllers.
+        motor.LPF_current_q.Tf = 0.002f;
+        motor.LPF_current_d.Tf = 0.002f;
+
+        Serial.print("Initializing motor... ");
+        if (!motor.init())
+        {
+            Serial.println("FAILED");
+            return false;
+        }
+
+        // Initialize FOC after the motor object and all linked hardware
+        // have been configured.
+        //
+        // This step typically performs the control-side startup/alignment
+        // required before normal closed-loop operation.
+        Serial.print("Initializing FOC... ");
+        if (!motor.initFOC())
+        {
+            Serial.println("FAILED");
+            return false;
+        }
+
+        Serial.println("OK");
+        return true;
+    }
 }

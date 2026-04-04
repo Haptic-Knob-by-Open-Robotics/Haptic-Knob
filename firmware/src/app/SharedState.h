@@ -126,3 +126,5 @@ bool writeRuntimeConfig(const RuntimeConfig &in);
 
 bool readSystemState(SystemState &out);
 bool writeSystemState(const SystemState &in);
+
+bool kickControlHeartbeat(SystemState systemState, uint32_t nowUs);

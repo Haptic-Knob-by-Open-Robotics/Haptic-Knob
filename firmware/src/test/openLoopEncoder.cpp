@@ -7,7 +7,7 @@
 BLDCMotor motor(POLE_PAIRS);
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
 BLDCDriver6PWM driver(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN);
-ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CSN);
 
 unsigned long lastPrintUs = 0;
 const unsigned long printPeriodUs = 10000; // 100 Hz

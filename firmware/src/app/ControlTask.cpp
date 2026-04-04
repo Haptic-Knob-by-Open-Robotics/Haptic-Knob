@@ -80,9 +80,10 @@ namespace
     // loop, we ask for compact "snapshots" of what we need.
     //
     // The general idea is:
-    //   - read shared state once
+    //   - read shared state once -- readSystemState(SystemState &out); readRuntimeConfig(RuntimeConfig &out); etc
     //   - make a local copy
     //   - do the real work using the local copy
+    // All of this functions are already built within the SharedState.h/cpp, since we already include them, we can use it.
     //
     // That is good practice for real-time code because it keeps the
     // time-sensitive control loop simple and predictable.
@@ -94,41 +95,22 @@ namespace
     //
     // We return a copy here so the control loop can safely work with
     // that snapshot for the rest of the iteration and won't require us to get the shared state mutex each time for this data.
-    RuntimeConfig readRuntimeConfigSnapshot()
-    {
-        RuntimeConfig config{};
-        readRuntimeConfig(config);
-        return config;
-    }
+    //
+    // We use readRuntimeConfig(RuntimeConfig &out)
 
     // Read the relevant system flags into a compact helper struct.
     // We first read the larger SystemState, then extract only the
     // fields this control task cares about right now.
-    ControlFlags readControlFlags()
-    {
-        SystemState systemState{};
-        readSystemState(systemState);
-
-        ControlFlags flags{};
-        flags.control_enabled = systemState.control_enabled;
-        flags.fault_latched = systemState.fault_latched;
-        return flags;
-    }
+    //
+    // We use readRuntimeConfig(RuntimeConfig &out);
 
     // Update the control-task heartbeat in shared state.
     // A watchdog task can monitor this heartbeat timestamp to confirm
     // that the control task is still running and not stalled.
     // If the heartbeat stops updating for too long, the watchdog can
     // decide something has gone wrong and place the system into a safe state where we stop outputting to the actuator.
-    void kickControlHeartbeat(uint32_t nowUs)
-    {
-        SystemState systemState{};
-        if (readSystemState(systemState))
-        {
-            systemState.control_last_heartbeat_us = nowUs;
-            writeSystemState(systemState);
-        }
-    }
+    //
+    // We use kickControlHeartbeat(SystemState systemState, uint32_t nowUs);
 
     // =================== MAIN CONTROL TASK ==============
     //
@@ -240,14 +222,20 @@ namespace
             //   - whether a fault has been latched
             //
             // Then we decide whether the motor is actually allowed to drive.
-            RuntimeConfig config = readRuntimeConfigSnapshot();
-            ControlFlags flags = readControlFlags();
+            RuntimeConfig config{};
+            SystemState systemState{};
+            ControlFlags flags{};
+
+            readRuntimeConfig(config);
+            readSystemState(systemState);
+            flags.fault_latched = systemState.fault_bits;
+            flags.control_enabled = systemState.control_enabled;
 
             // The motor should only actively drive when:
             //   1. control has been enabled by the system, and
             //   2. no fault is currently latched
             // If either is false, we go into safe behavior later in the loop.
-            // for now we set this to 1 manually to test but it shoudl be flags.control_enabled && !flags.fault_latched;
+            // for now we set this to 1 manually to test but it should be flags.control_enabled && !flags.fault_latched;
             const bool shouldDrive = 1;
 
             // 4. RUN THE FAST HARDWARE / MOTOR CONTROL STEP
@@ -371,9 +359,6 @@ namespace
             {
                 // Apply the torque-producing current request to the motor.
                 applyMotorCurrent(heldCommand.iq_cmd);
-                // static float filteredIqCmd = 0.0f;
-                // filteredIqCmd += 0.08f * (heldCommand.iq_cmd - filteredIqCmd);
-                // applyMotorCurrent(filteredIqCmd);
             }
             else
             {
@@ -385,7 +370,8 @@ namespace
             //
             // This tells the rest of the system that the control task is alive
             // and still executing.
-            kickControlHeartbeat(nowUs);
+            kickControlHeartbeat(systemState, nowUs);
+            writeSystemState(systemState);
 
             // 9. ADVANCE LOOP COUNTER
             //

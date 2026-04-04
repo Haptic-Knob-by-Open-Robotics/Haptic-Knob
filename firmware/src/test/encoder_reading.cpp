@@ -5,12 +5,13 @@
 #include "drivers/SpiBus.h"
 
 SpiBus spiBus(PIN_SPI_CLK, PIN_SPI_MISO, PIN_SPI_MOSI);
-ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CSN);
 
 unsigned long lastPrintUs = 0;
-const unsigned long printPeriodUs = 5000;   // 200 Hz
+const unsigned long printPeriodUs = 5000; // 200 Hz
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     delay(2000);
 
@@ -18,16 +19,17 @@ void setup() {
     encoder.init(spiBus.bus());
     Serial.println("Encoder initialized!");
 
-
     // CSV header
     Serial.println("time_s,angle_deg,angle_rad,velocity_rad_s");
 }
 
-void loop() {
+void loop()
+{
     encoder.update();
 
     unsigned long now = micros();
-    if (now - lastPrintUs >= printPeriodUs) {
+    if (now - lastPrintUs >= printPeriodUs)
+    {
         lastPrintUs = now;
 
         float t = now * 1e-6f;

@@ -11,7 +11,7 @@ BLDCDriver6PWM driver = BLDCDriver6PWM(
     PIN_WH, PIN_WL,
     PIN_EN);
 
-MagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+MagneticSensorMT6701SSI encoder(PIN_ENC_CSN);
 
 void setup()
 {

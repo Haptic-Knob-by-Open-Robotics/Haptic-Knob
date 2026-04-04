@@ -6,7 +6,7 @@
 
 BLDCMotor motor = BLDCMotor(POLE_PAIRS);
 BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_VH, PIN_VL, PIN_UH, PIN_UL, PIN_WH, PIN_WL, PIN_EN); // Swapped A and B
-ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CS);
+ModifiedMagneticSensorMT6701SSI encoder(PIN_ENC_CSN);
 Commander command = Commander(Serial);
 
 void doTarget(char *cmd)

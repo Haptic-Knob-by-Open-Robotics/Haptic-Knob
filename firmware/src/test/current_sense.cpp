@@ -2,7 +2,7 @@
 #include <SimpleFOC.h>
 #include "../app/Config.h"
 
-InlineCurrentSense current_sense = InlineCurrentSense(SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
+InlineCurrentSense current_sense = InlineCurrentSense(CURRENT_SENSE_SHUNT_RESISTOR_OHM, CURRENT_SENSE_AMP_GAIN, PIN_I_A, PIN_I_B, PIN_I_C);
 BLDCDriver6PWM driver = BLDCDriver6PWM(PIN_UH, PIN_UL, PIN_VH, PIN_VL, PIN_WH, PIN_WL, PIN_EN);
 
 void setup()

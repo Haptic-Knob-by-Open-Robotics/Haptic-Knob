@@ -240,3 +240,15 @@ bool writeSystemState(const SystemState &in)
     xSemaphoreGive(g_state_mutex);
     return true;
 }
+
+bool kickControlHeartbeat(SystemState systemState, uint32_t nowUs)
+{
+    SystemState systemState{};
+    if (readSystemState(systemState))
+    {
+        systemState.control_last_heartbeat_us = nowUs;
+        writeSystemState(systemState);
+        return true;
+    }
+    return false;
+}
