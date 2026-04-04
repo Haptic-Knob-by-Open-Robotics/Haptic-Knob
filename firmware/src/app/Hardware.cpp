@@ -8,15 +8,14 @@
 #include "app/Config.h"
 #include "drivers/ModifiedMagneticSensorMT6701SSI.h"
 
-SPIClass spiADC(1); // for MCP3204
-SPIClass spiENC(2); // for encoder
-
 namespace
 {
 
     bool setupCurrentSense();
     bool setupDriver();
     bool setupMotor();
+    SPIClass spiADC(1); // for MCP3204
+    SPIClass spiENC(2); // for encoder
 
     // ========== GLOBAL HARDWARE OBJECTS ==========
     // These are the core hardware/control objects used by the system.
