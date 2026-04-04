@@ -47,7 +47,7 @@ namespace
     //   Since this is time-sensitive, it should generally be higher than
     //   non-critical tasks like telemetry/debug printing.
     //
-    constexpr uint32_t CONTROL_TASK_PERIOD_MS = 1;
+    constexpr uint32_t CONTROL_TASK_PERIOD_MS = 0.1;
     constexpr uint32_t OUTER_LOOP_DIVIDER = 5;
     constexpr uint32_t CONTROL_TASK_STACK_SIZE = 4096;
     constexpr UBaseType_t CONTROL_TASK_PRIORITY = 5;
