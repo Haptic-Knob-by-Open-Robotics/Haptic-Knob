@@ -1,6 +1,15 @@
-import serial
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+try:
+    import serial
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
+except ModuleNotFoundError as exc:
+    missing = exc.name or "a required package"
+    raise SystemExit(
+        f"Missing Python package: {missing}\n"
+        "Install the plotting dependencies with:\n"
+        "  python -m pip install -r requirements.txt"
+    ) from exc
+
 from collections import deque
 
 # =========================

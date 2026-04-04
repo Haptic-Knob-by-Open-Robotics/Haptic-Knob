@@ -1,11 +1,22 @@
-import serial
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+try:
+    import serial
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
+except ModuleNotFoundError as exc:
+    missing = exc.name or "a required package"
+    raise SystemExit(
+        f"Missing Python package: {missing}\n"
+        "Install the plotting dependencies with:\n"
+        "  python -m pip install -r requirements.txt"
+    ) from exc
+
 from collections import deque
+import time
 
 PORT = "COM5"
 BAUD = 115200
 MAX_POINTS = 500
+HEADER_TIMEOUT_S = 8.0
 
 ser = serial.Serial(PORT, BAUD, timeout=1)
 
@@ -15,11 +26,30 @@ angle_deg_data = deque(maxlen=MAX_POINTS)
 vel_data = deque(maxlen=MAX_POINTS)
 
 print("Waiting for CSV header...")
+start_time = time.time()
+recent_lines = deque(maxlen=5)
 while True:
     line = ser.readline().decode(errors="ignore").strip()
+    if line:
+        recent_lines.append(line)
     if line == "time_s,angle_rad,angle_deg,velocity_rad_s":
         print("Header found. Starting plot...")
         break
+    if line.startswith("T,"):
+        raise SystemExit(
+            "Detected TelemetryTask output ('T,...'), not open-loop encoder CSV.\n"
+            "Use haptic_knob_tuner.py for the main firmware, or flash firmware/src/test/openLoopEncoder.cpp\n"
+            "if you want to use plot_encoder_openLoop.py."
+        )
+    if time.time() - start_time > HEADER_TIMEOUT_S:
+        sample = "\n".join(f"  {x}" for x in recent_lines) or "  <no serial data received>"
+        raise SystemExit(
+            "Timed out waiting for open-loop CSV header:\n"
+            "  time_s,angle_rad,angle_deg,velocity_rad_s\n"
+            "Recent serial lines were:\n"
+            f"{sample}\n"
+            "Check that PORT is correct and that the ESP32 is flashed with firmware/src/test/openLoopEncoder.cpp."
+        )
 
 fig, ax = plt.subplots()
 line_angle_deg, = ax.plot([], [], label="Angle (deg)")
