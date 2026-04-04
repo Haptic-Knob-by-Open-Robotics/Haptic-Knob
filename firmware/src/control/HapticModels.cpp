@@ -9,21 +9,20 @@
 
 LowPassFilter velocityFilter(0.03f);
 
-
 namespace
 {
-float clampf(float value, float minValue, float maxValue)
-{
-    if (value < minValue)
+    float clampf(float value, float minValue, float maxValue)
     {
-        return minValue;
+        if (value < minValue)
+        {
+            return minValue;
+        }
+        if (value > maxValue)
+        {
+            return maxValue;
+        }
+        return value;
     }
-    if (value > maxValue)
-    {
-        return maxValue;
-    }
-    return value;
-}
 }
 
 void computeResistorCommand(const MeasuredState &measured,
@@ -47,13 +46,12 @@ void computeCapacitorCommand(const MeasuredState &measured,
     static float filteredOmega = 0.0f;
     float theta = measured.angle_rad;
     float omega = velocityFilter(measured.velocity_rad_s);
-  
 
     if (fabsf(omega) < 0.15f)
     {
         omega = 0.0f;
     }
-    
+
     const float displacement = theta - config.theta_origin;
     float torqueCmd = -config.k_virtual * displacement - config.b_virtual * omega;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);

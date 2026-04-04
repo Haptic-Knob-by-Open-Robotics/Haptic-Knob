@@ -227,7 +227,7 @@ namespace
 
             readRuntimeConfig(config);
             readSystemState(systemState);
-            flags.fault_latched = systemState.fault_bits;
+            flags.fault_latched = systemState.fault_latched;
             flags.control_enabled = systemState.control_enabled;
 
             // The motor should only actively drive when:
@@ -370,7 +370,6 @@ namespace
             // This tells the rest of the system that the control task is alive
             // and still executing.
             kickControlHeartbeat(systemState, nowUs);
-            writeSystemState(systemState);
 
             // 9. ADVANCE LOOP COUNTER
             //
