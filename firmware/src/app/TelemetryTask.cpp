@@ -21,6 +21,51 @@
 #include "freertos/task.h"
 #include "app/Config.h"
 
+namespace
+{
+TaskHandle_t g_telemetry_task_handle = nullptr;
+}
+
+// Reads all available bytes from Serial into a line buffer (non-blocking).
+// When a newline is received, dispatches the complete line to handleCommandLine().
+// Buffer is capped at 128 chars — oversized commands are dropped with an ERR.
+static void processIncomingSerialCommands()
+{
+  static String lineBuffer = "";
+
+  while (Serial.available() > 0)
+  {
+    char c = static_cast<char>(Serial.read());
+
+    if (c == '\r')
+      continue; // ignore carriage returns (Windows line endings)
+
+    if (c == '\n')
+    {
+      lineBuffer.trim();
+
+      if (lineBuffer.length() > 0)
+      {
+        handleCommandLine(lineBuffer);
+      }
+
+      lineBuffer = "";
+      continue;
+    }
+
+    if (lineBuffer.length() < 128)
+    {
+      lineBuffer += c;
+    }
+    else
+    {
+      // buffer overflow
+      lineBuffer = "";
+      Serial.println("ERR,Command_Too_Long");
+    }
+  }
+}
+
 void TelemetryTask(void *pvParameters)
 {
   (void)pvParameters;
@@ -91,45 +136,6 @@ void sendTelemetryLine(MeasuredState &measured,
                 (unsigned long)state.telemetry_last_heartbeat_us);
 }
 
-// Reads all available bytes from Serial into a line buffer (non-blocking).
-// When a newline is received, dispatches the complete line to handleCommandLine().
-// Buffer is capped at 128 chars — oversized commands are dropped with an ERR.
-static void processIncomingSerialCommands()
-{
-  static String lineBuffer = "";
-
-  while (Serial.available() > 0)
-  {
-    char c = static_cast<char>(Serial.read());
-
-    if (c == '\r')
-      continue; // ignore carriage returns (Windows line endings)
-
-    if (c == '\n')
-    {
-      lineBuffer.trim();
-
-      if (lineBuffer.length() > 0)
-      {
-        handleCommandLine(lineBuffer);
-      }
-
-      lineBuffer = "";
-      continue;
-    }
-
-    if (lineBuffer.length() < 128)
-    {
-      lineBuffer += c;
-    }
-    else
-    {
-      // buffer overflow
-      lineBuffer = "";
-      Serial.println("ERR,Command_Too_Long");
-    }
-  }
-}
 
 // Parses and executes a single command line received from the Python GUI.
 //
@@ -343,4 +349,26 @@ void sendHelpMenu()
   Serial.println("  SET_DIODE,<threshold>,<gain>");
   Serial.println("  SET_RLC,<R>,<L>,<C>,<input_gain>,<torque_gain>");
   Serial.println("  SET_PID,<mode_idx>,<QP>,<QI>,<QD>,<DP>,<DI>,<DD>");
+}
+
+
+void startTelemetryTask()
+{
+  const BaseType_t ok = xTaskCreatePinnedToCore(
+      TelemetryTask,
+      "TelemetryTask",
+      TELEMETRY_STACK_SIZE,
+      nullptr,
+      TELEMETRY_PRIORITY,
+      &g_telemetry_task_handle,
+      1);
+
+  if (ok != pdPASS)
+  {
+    Serial.println("Failed to create TelemetryTask");
+    while (true)
+    {
+      delay(1000);
+    }
+  }
 }
