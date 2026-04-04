@@ -145,11 +145,10 @@ namespace
     {
         (void)pvParameters;
 
-        // The reference tick value used by vTaskDelayUntil().
-        //
-        // FreeRTOS will update from this base so the task wakes
-        // periodically instead of sleeping relative to whenever
-        // the previous iteration ended.
+        // 4. RUN THE FAST HARDWARE / MOTOR CONTROL STEP
+        //   - sensor update / sampling
+        //   - FOC inner-loop update
+        //   - driver-side maintenance
         //
         // That helps keep the loop timing deterministic.
         TickType_t lastWakeTime = xTaskGetTickCount();

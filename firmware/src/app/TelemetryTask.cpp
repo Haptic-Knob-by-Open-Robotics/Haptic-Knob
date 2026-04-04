@@ -12,10 +12,12 @@
     This task should be the main place where Serial I/O happens so the
     motor-control loop stays cleaner and more deterministic.
 */
-
 #include "app/TelemetryTask.h"
+
 #include <Arduino.h>
-#include "app/SharedState.h"
+#include <cstring>
+#include <inttypes.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "app/Config.h"

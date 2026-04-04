@@ -75,7 +75,7 @@ void setup()
   startControlTask();
 
   // Start the watchdog/safety monitoring task
-  // startWatchdogTask();
+  startWatchdogTask();
 
   Serial.println("System startup complete!");
 }
