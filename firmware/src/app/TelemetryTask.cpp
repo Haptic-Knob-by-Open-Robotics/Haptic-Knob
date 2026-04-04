@@ -11,10 +11,9 @@
 
     This task should be the main place where Serial I/O happens so the
     motor-control loop stays cleaner and more deterministic.
-*/
+*/ 
 #include "app/TelemetryTask.h"
 
-#include <Arduino.h>
 #include <cstring>
 #include <inttypes.h>
 
@@ -40,7 +39,6 @@ void TelemetryTask(void *pvParameters)
     HapticCommand haptic_command{};
     RuntimeConfig runtime_config{};
     SystemState system_state{};
-
     readMeasuredState(measured_state);
     readHapticCommand(haptic_command);
     readRuntimeConfig(runtime_config);
@@ -75,14 +73,6 @@ void sendTelemetryLine(MeasuredState &measured,
                        RuntimeConfig &config,
                        SystemState &state)
 {
-  // Field order matches haptic_knob_tuner.py indices [1]-[19]:
-  // [1]  mode
-  // [2-5]  angle_rad, angle_deg, vel, accel
-  // [6-10] iq_meas, ia, ib, ic, meas_ts
-  // [11-12] iq_cmd, cmd_ts
-  // [13-15] ctrl_en, trial_cfg, trial_act
-  // [16-17] fault_lat, fault_bits
-  // [18-19] ctrl_hb, tel_hb
   Serial.printf("%u,%.4f,%.4f,%.4f,%.4f,"
                 "%.4f,%.4f,%.4f,%.4f,%lu,"
                 "%.4f,%lu,"
@@ -136,7 +126,7 @@ static void processIncomingSerialCommands()
     {
       // buffer overflow
       lineBuffer = "";
-      Serial.println("ERR, Command_Too_Long");
+      Serial.println("ERR,Command_Too_Long");
     }
   }
 }
@@ -163,51 +153,121 @@ void handleCommandLine(String &line)
   RuntimeConfig config{};
   SystemState state{};
   MeasuredState measured{};
+  readMeasuredState(measured);
   readRuntimeConfig(config);
   readSystemState(state);
-
+  
   if (line.startsWith("SET_MODE,"))
   {
-    // TODO: parse mode index (0-4), validate range,
-    //       set config.active_mode = static_cast<HapticMode>(idx),
-    //       writeRuntimeConfig(config), Serial.println("ACK,SET_MODE")
+    int mode_index = -1;
+    int parsed = sscanf(line.c_str() + 9, "%d", &mode_index);
+    if (parsed == 1 && mode_index >= 0 && mode_index <= 4)
+    {
+      config.active_mode = static_cast<HapticMode>(mode_index);
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_MODE");
+    }
+    else
+    {
+      Serial.println("ERR,SET_MODE expects 1 int: mode_index (0-4)");
+    }
   }
+
   else if (line.startsWith("SET_ENABLE,"))
   {
-    // TODO: parse 0|1,
-    //       set state.control_enabled = (val != 0),
-    //       writeSystemState(state), Serial.println("ACK,SET_ENABLE")
+    int enable = -1;
+    int parsed = sscanf(line.c_str() + 11, "%d", &enable);
+    if (parsed == 1 && (enable == 0 || enable == 1))
+    {
+      state.control_enabled = (enable != 0);
+      writeSystemState(state);
+      Serial.println("ACK,SET_ENABLE");
+    }
+    else
+    {
+      Serial.println("ERR,SET_ENABLE expects 0 or 1");
+    }
   }
+
   else if (line == "ZERO")
   {
-    // TODO: readMeasuredState(measured),
-    //       set config.theta_origin = measured.angle_rad,
-    //       writeRuntimeConfig(config), Serial.println("ACK,ZERO")
+    readMeasuredState(measured);
+    config.theta_origin = measured.angle_rad;
+    writeRuntimeConfig(config);
+    Serial.println("ACK,ZERO");
   }
+
   else if (line.startsWith("SET_RES,"))
   {
-    // TODO: parse resistance_gain float from line.substring(8),
-    //       set config.resistance_gain, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_RES")
+    float res_gain = 0.0f;
+    int parsed = sscanf(line.c_str() + 8, "%f", &res_gain);
+    if (parsed == 1)
+    {
+      config.resistance_gain = res_gain;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_RES");
+    }
+    else
+    {
+      Serial.println("ERR,SET_RES expects 1 float: resistance_gain");
+    }
   }
+
   else if (line.startsWith("SET_CAP,"))
   {
-    // TODO: sscanf two floats (k_virtual, b_virtual) from line.c_str()+8,
-    //       set config.k_virtual and config.b_virtual, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_CAP")
+    float k_virtual, b_virtual;
+    int parsed = sscanf(line.c_str() + 8, "%f,%f", &k_virtual, &b_virtual);
+    if (parsed == 2)
+    {
+      config.k_virtual = k_virtual;
+      config.b_virtual = b_virtual;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_CAP");
+    }
+    else
+    {
+      Serial.println("ERR,SET_CAP expects 2 floats: k_virtual,b_virtual");
+    }
   }
+
   else if (line.startsWith("SET_IND,"))
   {
-    // TODO: sscanf five floats (L, damping, alpha_deadband, omega_deadband, iq_deadband),
-    //       set the five config fields, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_IND")
+    float L, damping, alpha_deadband, omega_deadband, iq_deadband;
+    int parsed = sscanf(line.c_str() + 8, "%f,%f,%f,%f,%f",
+                        &L, &damping, &alpha_deadband, &omega_deadband, &iq_deadband);
+    if (parsed == 5)
+    {
+      config.virtual_inductance = L;
+      config.inductor_damping = damping;
+      config.alpha_deadband = alpha_deadband;
+      config.omega_deadband = omega_deadband;
+      config.iq_deadband = iq_deadband;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_IND");
+    }
+    else
+    {
+      Serial.println("ERR,SET_IND expects 5 floats: L,damping,alpha_db,omega_db,iq_db");
+    }
   }
+
   else if (line.startsWith("SET_DIODE,"))
   {
-    // TODO: sscanf two floats (diode_threshold, diode_gain) from line.c_str()+10,
-    //       set config fields, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_DIODE")
+    float diode_threshold, diode_gain;
+    int parsed = sscanf(line.c_str() + 10, "%f,%f", &diode_threshold, &diode_gain);
+    if (parsed == 2)
+    {
+      config.diode_threshold = diode_threshold;
+      config.diode_gain = diode_gain;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_DIODE");
+    }
+    else
+    {
+      Serial.println("ERR,SET_DIODE expects 2 floats: threshold,gain");
+    }
   }
+
   else if (line.startsWith("SET_RLC,"))
   {
     float R, L, C, ig, tg;
@@ -263,6 +323,7 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_PID expects mode_idx(0-4),QP,QI,QD,DP,DI,DD");
     }
   }
+
   else
   {
     Serial.print("ERR,unknown command: ");
