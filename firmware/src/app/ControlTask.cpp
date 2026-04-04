@@ -163,18 +163,6 @@ namespace
     {
         (void)pvParameters;
 
-        // The reference tick value used by vTaskDelayUntil().
-        //
-        // Then we decide whether the motor is actually allowed to drive.
-        RuntimeConfig config = readRuntimeConfigSnapshot();
-        ControlFlags flags = readControlFlags();
-
-        // The motor should only actively drive when:
-        //   1. control has been enabled by the system, and
-        //   2. no fault is currently latched
-        // If either is false, we go into safe behavior later in the loop.
-        const bool shouldDrive = flags.control_enabled && !flags.fault_latched;
-
         // 4. RUN THE FAST HARDWARE / MOTOR CONTROL STEP
         //   - sensor update / sampling
         //   - FOC inner-loop update
@@ -258,8 +246,7 @@ namespace
             //   1. control has been enabled by the system, and
             //   2. no fault is currently latched
             // If either is false, we go into safe behavior later in the loop.
-            // for now we set this to 1 manually to test but it shoudl be flags.control_enabled && !flags.fault_latched;
-            const bool shouldDrive = 1;
+            const bool shouldDrive = flags.control_enabled && !flags.fault_latched;
 
             // 4. RUN THE FAST HARDWARE / MOTOR CONTROL STEP
             //   - sensor update / sampling
