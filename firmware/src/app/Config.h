@@ -4,12 +4,18 @@
 // ============================================================
 // PWM / Driver Pins
 // ============================================================
-constexpr int PIN_UL = 4;
-constexpr int PIN_UH = 5;
-constexpr int PIN_VL = 6;
-constexpr int PIN_VH = 7;
-constexpr int PIN_WL = 15;
-constexpr int PIN_WH = 16;
+// constexpr int PIN_UL = 4;
+// constexpr int PIN_UH = 5;
+// constexpr int PIN_VL = 6;
+// constexpr int PIN_VH = 7;
+// constexpr int PIN_WL = 15;
+// constexpr int PIN_WH = 16;
+constexpr int PIN_UL = 6;
+constexpr int PIN_UH = 16;
+constexpr int PIN_VL = 4;
+constexpr int PIN_VH = 15;
+constexpr int PIN_WL = 5;
+constexpr int PIN_WH = 7;
 constexpr int PIN_EN = 17;
 
 // ============================================================

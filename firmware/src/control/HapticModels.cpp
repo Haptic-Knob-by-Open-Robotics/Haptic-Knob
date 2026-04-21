@@ -7,10 +7,30 @@
 
 #include "app/Config.h"
 
-LowPassFilter velocityFilter(0.03f);
-
 namespace
 {
+    constexpr float VELOCITY_FILTER_TF_S = 0.03f;
+    constexpr float ACCEL_FILTER_TF_S = 0.015f;
+    constexpr float DEFAULT_VELOCITY_DEADBAND = 0.15f;
+    constexpr float DEFAULT_ACCEL_DEADBAND = 8.0f;
+    constexpr float DEFAULT_CURRENT_DEADBAND = 0.03f;
+    constexpr float DEFAULT_INDUCTOR_DAMPING = 0.02f;
+    constexpr float RLC_IDLE_DECAY_PER_UPDATE = 0.98f;
+
+    struct ModelRuntimeState
+    {
+        HapticMode activeMode = HapticMode::Resistor;
+        bool initialized = false;
+        float filteredVelocity = 0.0f;
+        float previousFilteredVelocity = 0.0f;
+        float filteredAcceleration = 0.0f;
+        float virtualCurrent = 0.0f;
+        float virtualCapVoltage = 0.0f;
+        uint32_t lastModelUpdateUs = 0;
+    };
+
+    ModelRuntimeState g_model_state;
+
     float clampf(float value, float minValue, float maxValue)
     {
         if (value < minValue)
@@ -22,6 +42,92 @@ namespace
             return maxValue;
         }
         return value;
+    }
+
+    float applyLowPass(float previousValue, float sample, float dt, float timeConstant)
+    {
+        const float alpha = dt / (timeConstant + dt);
+        return previousValue + alpha * (sample - previousValue);
+    }
+
+    float applyDeadband(float value, float threshold)
+    {
+        if (fabsf(value) < threshold)
+        {
+            return 0.0f;
+        }
+        return value;
+    }
+
+    float getModelDt(uint32_t measurementTimestampUs)
+    {
+        float dt = MODEL_CONTROL_PERIOD_MS * 1e-3f;
+
+        if (g_model_state.initialized &&
+            g_model_state.lastModelUpdateUs != 0 &&
+            measurementTimestampUs > g_model_state.lastModelUpdateUs)
+        {
+            dt = (measurementTimestampUs - g_model_state.lastModelUpdateUs) * 1e-6f;
+        }
+
+        g_model_state.lastModelUpdateUs = measurementTimestampUs;
+        return clampf(dt, 0.0001f, 0.01f);
+    }
+
+    void resetDynamicModelState(HapticMode activeMode)
+    {
+        g_model_state.activeMode = activeMode;
+        g_model_state.filteredVelocity = 0.0f;
+        g_model_state.previousFilteredVelocity = 0.0f;
+        g_model_state.filteredAcceleration = 0.0f;
+        g_model_state.virtualCurrent = 0.0f;
+        g_model_state.virtualCapVoltage = 0.0f;
+        g_model_state.lastModelUpdateUs = 0;
+        g_model_state.initialized = true;
+    }
+
+    void syncModelState(const MeasuredState &measured, HapticMode activeMode)
+    {
+        if (!g_model_state.initialized || g_model_state.activeMode != activeMode)
+        {
+            resetDynamicModelState(activeMode);
+            g_model_state.filteredVelocity = measured.velocity_rad_s;
+            g_model_state.previousFilteredVelocity = measured.velocity_rad_s;
+        }
+    }
+
+    float getFilteredVelocity(const MeasuredState &measured,
+                              const RuntimeConfig &config,
+                              float dt)
+    {
+        g_model_state.filteredVelocity = applyLowPass(
+            g_model_state.filteredVelocity,
+            measured.velocity_rad_s,
+            dt,
+            VELOCITY_FILTER_TF_S);
+
+        const float velocityDeadband =
+            config.omega_deadband > 0.0f ? config.omega_deadband : DEFAULT_VELOCITY_DEADBAND;
+        return applyDeadband(g_model_state.filteredVelocity, velocityDeadband);
+    }
+
+    float getFilteredAcceleration(float filteredVelocity,
+                                  const RuntimeConfig &config,
+                                  float dt)
+    {
+        const float rawAcceleration =
+            (filteredVelocity - g_model_state.previousFilteredVelocity) / dt;
+        g_model_state.previousFilteredVelocity = filteredVelocity;
+
+        g_model_state.filteredAcceleration = applyLowPass(
+            g_model_state.filteredAcceleration,
+            rawAcceleration,
+            dt,
+            ACCEL_FILTER_TF_S);
+
+        const float accelerationDeadband =
+            config.alpha_deadband > 0.0f ? config.alpha_deadband : DEFAULT_ACCEL_DEADBAND;
+        return applyDeadband(g_model_state.filteredAcceleration, accelerationDeadband);
     }
 }
 
@@ -43,14 +149,10 @@ void computeCapacitorCommand(const MeasuredState &measured,
                              const RuntimeConfig &config,
                              HapticCommand &command)
 {
-    static float filteredOmega = 0.0f;
+    syncModelState(measured, HapticMode::Capacitor);
+    const float dt = getModelDt(measured.last_update_us);
     float theta = measured.angle_rad;
-    float omega = velocityFilter(measured.velocity_rad_s);
-
-    if (fabsf(omega) < 0.15f)
-    {
-        omega = 0.0f;
-    }
+    float omega = getFilteredVelocity(measured, config, dt);
 
     const float displacement = theta - config.theta_origin;
     float torqueCmd = -config.k_virtual * displacement - config.b_virtual * omega;
@@ -67,26 +169,22 @@ void computeInductorCommand(const MeasuredState &measured,
                             const RuntimeConfig &config,
                             HapticCommand &command)
 {
-    float alpha = measured.acceleration_rad_s2;
-    float omega = measured.velocity_rad_s;
+    syncModelState(measured, HapticMode::Inductor);
+    const float dt = getModelDt(measured.last_update_us);
+    const float omega = getFilteredVelocity(measured, config, dt);
+    const float alpha = getFilteredAcceleration(omega, config, dt);
+    const float damping =
+        config.inductor_damping > 0.0f ? config.inductor_damping : DEFAULT_INDUCTOR_DAMPING;
 
-    if (fabsf(alpha) < config.alpha_deadband)
-    {
-        alpha = 0.0f;
-    }
-
-    if (fabsf(omega) < config.omega_deadband)
-    {
-        omega = 0.0f;
-    }
-
-    float torqueCmd = -config.virtual_inductance * alpha - config.inductor_damping * omega;
+    float torqueCmd = -config.virtual_inductance * alpha - damping * omega;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
 
     float iqCmd = torqueCmd / TORQUE_CONST;
     iqCmd = clampf(iqCmd, -MAX_CURRENT, MAX_CURRENT);
 
-    if (fabsf(iqCmd) < config.iq_deadband)
+    const float currentDeadband =
+        config.iq_deadband > 0.0f ? config.iq_deadband : DEFAULT_CURRENT_DEADBAND;
+    if (fabsf(iqCmd) < currentDeadband)
     {
         iqCmd = 0.0f;
     }
@@ -99,11 +197,16 @@ void computeDiodeCommand(const MeasuredState &measured,
                          const RuntimeConfig &config,
                          HapticCommand &command)
 {
+    syncModelState(measured, HapticMode::Diode);
+    const float dt = getModelDt(measured.last_update_us);
+    const float omega = getFilteredVelocity(measured, config, dt);
+    const float absOmega = fabsf(omega);
     float torqueCmd = 0.0f;
 
-    if (measured.velocity_rad_s > config.diode_threshold)
+    if (absOmega > config.diode_threshold)
     {
-        torqueCmd = -config.diode_gain * measured.velocity_rad_s;
+        const float conductionVelocity = absOmega - config.diode_threshold;
+        torqueCmd = -config.diode_gain * conductionVelocity * (omega > 0.0f ? 1.0f : -1.0f);
     }
 
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
@@ -119,26 +222,9 @@ void computeRLCCommand(const MeasuredState &measured,
                        const RuntimeConfig &config,
                        HapticCommand &command)
 {
-    static float iVirtual = 0.0f;
-    static float vcVirtual = 0.0f;
-    static uint32_t lastModelUpdateUs = 0;
-
-    const uint32_t nowUs = measured.last_update_us;
-    float dt = 0.001f;
-
-    if (lastModelUpdateUs != 0 && nowUs > lastModelUpdateUs)
-    {
-        dt = (nowUs - lastModelUpdateUs) * 1e-6f;
-    }
-    lastModelUpdateUs = nowUs;
-
-    dt = clampf(dt, 0.0001f, 0.005f);
-
-    float omega = measured.velocity_rad_s;
-    if (fabsf(omega) < config.omega_deadband)
-    {
-        omega = 0.0f;
-    }
+    syncModelState(measured, HapticMode::RLC);
+    const float dt = getModelDt(measured.last_update_us);
+    const float omega = getFilteredVelocity(measured, config, dt);
 
     const float vin = config.input_gain * omega;
 
@@ -150,16 +236,25 @@ void computeRLCCommand(const MeasuredState &measured,
     L = fmaxf(L, 0.0001f);
     C = fmaxf(C, 0.0001f);
 
-    const float diDt = (vin - R * iVirtual - vcVirtual) / L;
-    const float dvcDt = iVirtual / C;
+    const float diDt =
+        (vin - R * g_model_state.virtualCurrent - g_model_state.virtualCapVoltage) / L;
+    const float dvcDt = g_model_state.virtualCurrent / C;
 
-    iVirtual += diDt * dt;
-    vcVirtual += dvcDt * dt;
+    g_model_state.virtualCurrent += diDt * dt;
+    g_model_state.virtualCapVoltage += dvcDt * dt;
 
-    iVirtual = clampf(iVirtual, -config.max_state_abs, config.max_state_abs);
-    vcVirtual = clampf(vcVirtual, -config.max_state_abs, config.max_state_abs);
+    if (omega == 0.0f)
+    {
+        g_model_state.virtualCurrent *= RLC_IDLE_DECAY_PER_UPDATE;
+        g_model_state.virtualCapVoltage *= RLC_IDLE_DECAY_PER_UPDATE;
+    }
 
-    float torqueCmd = -config.torque_gain * iVirtual;
+    g_model_state.virtualCurrent = clampf(
+        g_model_state.virtualCurrent, -config.max_state_abs, config.max_state_abs);
+    g_model_state.virtualCapVoltage = clampf(
+        g_model_state.virtualCapVoltage, -config.max_state_abs, config.max_state_abs);
+
+    float torqueCmd = -config.torque_gain * g_model_state.virtualCurrent;
     torqueCmd = clampf(torqueCmd, -MAX_TORQUE, MAX_TORQUE);
 
     float iqCmd = torqueCmd / TORQUE_CONST;

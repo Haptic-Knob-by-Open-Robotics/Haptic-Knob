@@ -14,7 +14,6 @@
 */
 #include "app/TelemetryTask.h"
 
-#include <Arduino.h>
 #include <cstring>
 #include <inttypes.h>
 
@@ -22,83 +21,9 @@
 #include "freertos/task.h"
 #include "app/Config.h"
 
-void TelemetryTask(void *pvParameters)
+namespace
 {
-  (void)pvParameters;
-  TickType_t lastWakeTime = xTaskGetTickCount();
-  const TickType_t period = pdMS_TO_TICKS(TELEMETRY_PERIOD_MS);
-
-  sendHelpMenu();
-
-  while (1)
-  {
-    // 1. Parse any pending commands from the PC GUI (non-blocking)
-    processIncomingSerialCommands();
-
-    // 2. Read all shared state
-    MeasuredState measured_state{};
-    HapticCommand haptic_command{};
-    RuntimeConfig runtime_config{};
-    SystemState system_state{};
-
-    readMeasuredState(measured_state);
-    readHapticCommand(haptic_command);
-    readRuntimeConfig(runtime_config);
-    readSystemState(system_state);
-
-    // 3. Emit telemetry line — "T," prefix required by the Python GUI parser
-    Serial.print("T,");
-    sendTelemetryLine(measured_state, haptic_command, runtime_config, system_state);
-
-    // 4. Update our own heartbeat
-    system_state.telemetry_last_heartbeat_us = micros();
-    writeSystemState(system_state);
-
-    // 5. Pace at TELEMETRY_PERIOD_MS (50 Hz)
-    vTaskDelayUntil(&lastWakeTime, period);
-  }
-}
-
-// Emits one CSV telemetry line to Serial (without the leading "T," prefix —
-// the task loop prints that before calling this).
-//
-// Field order matches what haptic_knob_tuner.py expects (indices 1-19):
-//   [1]  active_mode        [2]  angle_rad         [3]  angle_deg_wrapped
-//   [4]  velocity_rad_s     [5]  acceleration_rad_s2
-//   [6]  iq_meas  [7] ia  [8] ib  [9] ic  [10] meas_last_update_us
-//   [11] iq_cmd   [12] cmd_last_update_us
-//   [13] control_enabled  [14] trial_configured  [15] trial_active
-//   [16] fault_latched    [17] fault_bits
-//   [18] ctrl_heartbeat_us  [19] tel_heartbeat_us
-void sendTelemetryLine(MeasuredState &measured,
-                       HapticCommand &haptic,
-                       RuntimeConfig &config,
-                       SystemState &state)
-{
-  // Field order matches haptic_knob_tuner.py indices [1]-[19]:
-  // [1]  mode
-  // [2-5]  angle_rad, angle_deg, vel, accel
-  // [6-10] iq_meas, ia, ib, ic, meas_ts
-  // [11-12] iq_cmd, cmd_ts
-  // [13-15] ctrl_en, trial_cfg, trial_act
-  // [16-17] fault_lat, fault_bits
-  // [18-19] ctrl_hb, tel_hb
-  Serial.printf("%u,%.4f,%.4f,%.4f,%.4f,"
-                "%.4f,%.4f,%.4f,%.4f,%lu,"
-                "%.4f,%lu,"
-                "%d,%d,%d,"
-                "%d,%lx,"
-                "%lu,%lu\n",
-                (uint8_t)config.active_mode,
-                measured.angle_rad, measured.angle_deg_wrapped,
-                measured.velocity_rad_s, measured.acceleration_rad_s2,
-                measured.iq_meas, measured.ia, measured.ib, measured.ic,
-                (unsigned long)measured.last_update_us,
-                haptic.iq_cmd, (unsigned long)haptic.last_update_us,
-                (int)state.control_enabled, (int)state.trial_configured, (int)state.trial_active,
-                (int)state.fault_latched, (unsigned long)state.fault_bits,
-                (unsigned long)state.control_last_heartbeat_us,
-                (unsigned long)state.telemetry_last_heartbeat_us);
+  TaskHandle_t g_telemetry_task_handle = nullptr;
 }
 
 // Reads all available bytes from Serial into a line buffer (non-blocking).
@@ -136,9 +61,79 @@ static void processIncomingSerialCommands()
     {
       // buffer overflow
       lineBuffer = "";
-      Serial.println("ERR, Command_Too_Long");
+      Serial.println("ERR,Command_Too_Long");
     }
   }
+}
+
+void TelemetryTask(void *pvParameters)
+{
+  (void)pvParameters;
+  TickType_t lastWakeTime = xTaskGetTickCount();
+  const TickType_t period = pdMS_TO_TICKS(TELEMETRY_PERIOD_MS);
+
+  sendHelpMenu();
+
+  while (1)
+  {
+    // 1. Parse any pending commands from the PC GUI (non-blocking)
+    processIncomingSerialCommands();
+
+    // 2. Read all shared state
+    MeasuredState measured_state{};
+    HapticCommand haptic_command{};
+    RuntimeConfig runtime_config{};
+    SystemState system_state{};
+    readMeasuredState(measured_state);
+    readHapticCommand(haptic_command);
+    readRuntimeConfig(runtime_config);
+    readSystemState(system_state);
+
+    // 3. Emit telemetry line — "T," prefix required by the Python GUI parser
+    Serial.print("T,");
+    sendTelemetryLine(measured_state, haptic_command, runtime_config, system_state);
+
+    // 4. Update our own heartbeat
+    system_state.telemetry_last_heartbeat_us = micros();
+    writeSystemState(system_state);
+
+    // 5. Pace at TELEMETRY_PERIOD_MS (50 Hz)
+    vTaskDelayUntil(&lastWakeTime, period);
+  }
+}
+
+// Emits one CSV telemetry line to Serial (without the leading "T," prefix —
+// the task loop prints that before calling this).
+//
+// Field order matches what haptic_knob_tuner.py expects (indices 1-19):
+//   [1]  active_mode        [2]  angle_rad         [3]  angle_deg_wrapped
+//   [4]  velocity_rad_s     [5]  acceleration_rad_s2
+//   [6]  iq_meas  [7] ia  [8] ib  [9] ic  [10] meas_last_update_us
+//   [11] iq_cmd   [12] cmd_last_update_us
+//   [13] control_enabled  [14] trial_configured  [15] trial_active
+//   [16] fault_latched    [17] fault_bits
+//   [18] ctrl_heartbeat_us  [19] tel_heartbeat_us
+void sendTelemetryLine(MeasuredState &measured,
+                       HapticCommand &haptic,
+                       RuntimeConfig &config,
+                       SystemState &state)
+{
+  Serial.printf("%u,%.4f,%.4f,%.4f,%.4f,"
+                "%.4f,%.4f,%.4f,%.4f,%lu,"
+                "%.4f,%lu,"
+                "%d,%d,%d,"
+                "%d,%lx,"
+                "%lu,%lu\n",
+                (uint8_t)config.active_mode,
+                measured.angle_rad, measured.angle_deg_wrapped,
+                measured.velocity_rad_s, measured.acceleration_rad_s2,
+                measured.iq_meas, measured.ia, measured.ib, measured.ic,
+                (unsigned long)measured.last_update_us,
+                haptic.iq_cmd, (unsigned long)haptic.last_update_us,
+                (int)state.control_enabled, (int)state.trial_configured, (int)state.trial_active,
+                (int)state.fault_latched, (unsigned long)state.fault_bits,
+                (unsigned long)state.control_last_heartbeat_us,
+                (unsigned long)state.telemetry_last_heartbeat_us);
 }
 
 // Parses and executes a single command line received from the Python GUI.
@@ -163,6 +158,7 @@ void handleCommandLine(String &line)
   RuntimeConfig config{};
   SystemState state{};
   MeasuredState measured{};
+  readMeasuredState(measured);
   readRuntimeConfig(config);
   readSystemState(state);
 
@@ -180,6 +176,7 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_MODE expects mode index 0-4");
     }
   }
+
   else if (line.startsWith("SET_ENABLE,"))
   {
     int val = line.substring(11).toInt();
@@ -187,6 +184,7 @@ void handleCommandLine(String &line)
     writeSystemState(state);
     Serial.println("ACK,SET_ENABLE");
   }
+
   else if (line == "ZERO")
   {
     readMeasuredState(measured);
@@ -194,13 +192,14 @@ void handleCommandLine(String &line)
     writeRuntimeConfig(config);
     Serial.println("ACK,ZERO");
   }
+
   else if (line.startsWith("SET_RES,"))
   {
-    float gain;
-    int parsed = sscanf(line.c_str() + 8, "%f", &gain);
+    float res_gain = 0.0f;
+    int parsed = sscanf(line.c_str() + 8, "%f", &res_gain);
     if (parsed == 1)
     {
-      config.resistance_gain = gain;
+      config.resistance_gain = res_gain;
       writeRuntimeConfig(config);
       Serial.println("ACK,SET_RES");
     }
@@ -209,33 +208,36 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_RES expects 1 float: resistance_gain");
     }
   }
+
   else if (line.startsWith("SET_CAP,"))
   {
-    float K, B;
-    int parsed = sscanf(line.c_str() + 8, "%f,%f", &K, &B);
+    float k_virtual, b_virtual;
+    int parsed = sscanf(line.c_str() + 8, "%f,%f", &k_virtual, &b_virtual);
     if (parsed == 2)
     {
-      config.k_virtual = K;
-      config.b_virtual = B;
+      config.k_virtual = k_virtual;
+      config.b_virtual = b_virtual;
       writeRuntimeConfig(config);
       Serial.println("ACK,SET_CAP");
     }
     else
     {
-      Serial.println("ERR,SET_CAP expects 2 floats: K,B");
+      Serial.println("ERR,SET_CAP expects 2 floats: k_virtual,b_virtual");
     }
   }
+
   else if (line.startsWith("SET_IND,"))
   {
-    float L, damp, adb, odb, iqdb;
-    int parsed = sscanf(line.c_str() + 8, "%f,%f,%f,%f,%f", &L, &damp, &adb, &odb, &iqdb);
+    float L, damping, alpha_deadband, omega_deadband, iq_deadband;
+    int parsed = sscanf(line.c_str() + 8, "%f,%f,%f,%f,%f",
+                        &L, &damping, &alpha_deadband, &omega_deadband, &iq_deadband);
     if (parsed == 5)
     {
       config.virtual_inductance = L;
-      config.inductor_damping = damp;
-      config.alpha_deadband = adb;
-      config.omega_deadband = odb;
-      config.iq_deadband = iqdb;
+      config.inductor_damping = damping;
+      config.alpha_deadband = alpha_deadband;
+      config.omega_deadband = omega_deadband;
+      config.iq_deadband = iq_deadband;
       writeRuntimeConfig(config);
       Serial.println("ACK,SET_IND");
     }
@@ -244,14 +246,15 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_IND expects 5 floats: L,damping,alpha_db,omega_db,iq_db");
     }
   }
+
   else if (line.startsWith("SET_DIODE,"))
   {
-    float threshold, gain;
-    int parsed = sscanf(line.c_str() + 10, "%f,%f", &threshold, &gain);
+    float diode_threshold, diode_gain;
+    int parsed = sscanf(line.c_str() + 10, "%f,%f", &diode_threshold, &diode_gain);
     if (parsed == 2)
     {
-      config.diode_threshold = threshold;
-      config.diode_gain = gain;
+      config.diode_threshold = diode_threshold;
+      config.diode_gain = diode_gain;
       writeRuntimeConfig(config);
       Serial.println("ACK,SET_DIODE");
     }
@@ -260,6 +263,7 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_DIODE expects 2 floats: threshold,gain");
     }
   }
+
   else if (line.startsWith("SET_RLC,"))
   {
     float R, L, C, ig, tg;
@@ -314,6 +318,7 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_PID expects mode_idx(0-4),QP,QI,QD,DP,DI,DD");
     }
   }
+
   else
   {
     Serial.print("ERR,unknown command: ");
@@ -353,4 +358,25 @@ void sendHelpMenu()
   Serial.println("  SET_DIODE,<threshold>,<gain>");
   Serial.println("  SET_RLC,<R>,<L>,<C>,<input_gain>,<torque_gain>");
   Serial.println("  SET_PID,<mode_idx>,<QP>,<QI>,<QD>,<DP>,<DI>,<DD>");
+}
+
+void startTelemetryTask()
+{
+  const BaseType_t ok = xTaskCreatePinnedToCore(
+      TelemetryTask,
+      "TelemetryTask",
+      TELEMETRY_STACK_SIZE,
+      nullptr,
+      TELEMETRY_PRIORITY,
+      &g_telemetry_task_handle,
+      1);
+
+  if (ok != pdPASS)
+  {
+    Serial.println("Failed to create TelemetryTask");
+    while (true)
+    {
+      delay(1000);
+    }
+  }
 }

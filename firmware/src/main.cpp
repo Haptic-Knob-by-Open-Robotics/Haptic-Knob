@@ -65,14 +65,14 @@ void setup()
   }
 
   // Start telemtry task
-  startTelemetryTask();
+  // startTelemetryTask();
 
   // Create the main deterministic control task, note that we give this the highest priority since it owns the
   // real time motor/control path
   startControlTask();
 
   // Start the watchdog/safety monitoring task
-  startWatchdogTask();
+  // startWatchdogTask();
 
   Serial.println("System startup complete!");
 }

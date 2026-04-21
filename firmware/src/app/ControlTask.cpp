@@ -47,7 +47,7 @@ namespace
     //   Since this is time-sensitive, it should generally be higher than
     //   non-critical tasks like telemetry/debug printing.
     //
-    constexpr uint32_t CONTROL_TASK_PERIOD_MS = 1;
+    constexpr uint32_t CONTROL_TASK_PERIOD_MS = 0.1;
     constexpr uint32_t OUTER_LOOP_DIVIDER = 5;
     constexpr uint32_t CONTROL_TASK_STACK_SIZE = 4096;
     constexpr UBaseType_t CONTROL_TASK_PRIORITY = 5;
@@ -72,6 +72,25 @@ namespace
         bool control_enabled = false;
         bool fault_latched = false;
     };
+
+    const CurrentLoopPID &selectCurrentLoopPid(const RuntimeConfig &config)
+    {
+        switch (config.active_mode)
+        {
+        case HapticMode::Resistor:
+            return config.resistor_pid;
+        case HapticMode::Capacitor:
+            return config.capacitor_pid;
+        case HapticMode::Inductor:
+            return config.inductor_pid;
+        case HapticMode::Diode:
+            return config.diode_pid;
+        case HapticMode::RLC:
+            return config.rlc_pid;
+        default:
+            return config.resistor_pid;
+        }
+    }
 
     // ============= SHARED STATE SNAPSHOT HELPERS ============
     //
@@ -187,6 +206,8 @@ namespace
         // For the very first sample, we do not yet have a meaningful previous
         // velocity to compare against, so we explicitly handle that case.
         bool firstSample = true;
+        CurrentLoopPID appliedPid{};
+        bool pidInitialized = false;
 
         // Infinite control loop.
         //
@@ -234,8 +255,22 @@ namespace
             //   1. control has been enabled by the system, and
             //   2. no fault is currently latched
             // If either is false, we go into safe behavior later in the loop.
-            // for now we set this to 1 manually to test but it should be flags.control_enabled && !flags.fault_latched;
-            const bool shouldDrive = 1;
+            const bool shouldDrive = flags.control_enabled && !flags.fault_latched;
+
+            const CurrentLoopPID &targetPid = selectCurrentLoopPid(config);
+            if (!pidInitialized ||
+                targetPid.q.P != appliedPid.q.P ||
+                targetPid.q.I != appliedPid.q.I ||
+                targetPid.q.D != appliedPid.q.D ||
+                targetPid.d.P != appliedPid.d.P ||
+                targetPid.d.I != appliedPid.d.I ||
+                targetPid.d.D != appliedPid.d.D)
+            {
+                setCurrentPidGains(targetPid.q.P, targetPid.q.I, targetPid.q.D,
+                                   targetPid.d.P, targetPid.d.I, targetPid.d.D);
+                appliedPid = targetPid;
+                pidInitialized = true;
+            }
 
             // 4. RUN THE FAST HARDWARE / MOTOR CONTROL STEP
             //   - sensor update / sampling
