@@ -36,7 +36,6 @@
 
 void setup()
 {
-
   Serial.begin(115200);
   delay(1500);
 
@@ -81,7 +80,5 @@ void setup()
 void loop()
 {
   // FreeRTOS tasks own the runtime behavior now so just block forever to avoid wasting CPU time here
-  Serial.println("inside loop");
-
   vTaskDelay(portMAX_DELAY);
 }

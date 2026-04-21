@@ -168,45 +168,97 @@ void handleCommandLine(String &line)
 
   if (line.startsWith("SET_MODE,"))
   {
-    // TODO: parse mode index (0-4), validate range,
-    //       set config.active_mode = static_cast<HapticMode>(idx),
-    //       writeRuntimeConfig(config), Serial.println("ACK,SET_MODE")
+    int idx = line.substring(9).toInt();
+    if (idx >= 0 && idx <= 4)
+    {
+      config.active_mode = static_cast<HapticMode>(idx);
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_MODE");
+    }
+    else
+    {
+      Serial.println("ERR,SET_MODE expects mode index 0-4");
+    }
   }
   else if (line.startsWith("SET_ENABLE,"))
   {
-    // TODO: parse 0|1,
-    //       set state.control_enabled = (val != 0),
-    //       writeSystemState(state), Serial.println("ACK,SET_ENABLE")
+    int val = line.substring(11).toInt();
+    state.control_enabled = (val != 0);
+    writeSystemState(state);
+    Serial.println("ACK,SET_ENABLE");
   }
   else if (line == "ZERO")
   {
-    // TODO: readMeasuredState(measured),
-    //       set config.theta_origin = measured.angle_rad,
-    //       writeRuntimeConfig(config), Serial.println("ACK,ZERO")
+    readMeasuredState(measured);
+    config.theta_origin = measured.angle_rad;
+    writeRuntimeConfig(config);
+    Serial.println("ACK,ZERO");
   }
   else if (line.startsWith("SET_RES,"))
   {
-    // TODO: parse resistance_gain float from line.substring(8),
-    //       set config.resistance_gain, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_RES")
+    float gain;
+    int parsed = sscanf(line.c_str() + 8, "%f", &gain);
+    if (parsed == 1)
+    {
+      config.resistance_gain = gain;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_RES");
+    }
+    else
+    {
+      Serial.println("ERR,SET_RES expects 1 float: resistance_gain");
+    }
   }
   else if (line.startsWith("SET_CAP,"))
   {
-    // TODO: sscanf two floats (k_virtual, b_virtual) from line.c_str()+8,
-    //       set config.k_virtual and config.b_virtual, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_CAP")
+    float K, B;
+    int parsed = sscanf(line.c_str() + 8, "%f,%f", &K, &B);
+    if (parsed == 2)
+    {
+      config.k_virtual = K;
+      config.b_virtual = B;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_CAP");
+    }
+    else
+    {
+      Serial.println("ERR,SET_CAP expects 2 floats: K,B");
+    }
   }
   else if (line.startsWith("SET_IND,"))
   {
-    // TODO: sscanf five floats (L, damping, alpha_deadband, omega_deadband, iq_deadband),
-    //       set the five config fields, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_IND")
+    float L, damp, adb, odb, iqdb;
+    int parsed = sscanf(line.c_str() + 8, "%f,%f,%f,%f,%f", &L, &damp, &adb, &odb, &iqdb);
+    if (parsed == 5)
+    {
+      config.virtual_inductance = L;
+      config.inductor_damping = damp;
+      config.alpha_deadband = adb;
+      config.omega_deadband = odb;
+      config.iq_deadband = iqdb;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_IND");
+    }
+    else
+    {
+      Serial.println("ERR,SET_IND expects 5 floats: L,damping,alpha_db,omega_db,iq_db");
+    }
   }
   else if (line.startsWith("SET_DIODE,"))
   {
-    // TODO: sscanf two floats (diode_threshold, diode_gain) from line.c_str()+10,
-    //       set config fields, writeRuntimeConfig(config),
-    //       Serial.println("ACK,SET_DIODE")
+    float threshold, gain;
+    int parsed = sscanf(line.c_str() + 10, "%f,%f", &threshold, &gain);
+    if (parsed == 2)
+    {
+      config.diode_threshold = threshold;
+      config.diode_gain = gain;
+      writeRuntimeConfig(config);
+      Serial.println("ACK,SET_DIODE");
+    }
+    else
+    {
+      Serial.println("ERR,SET_DIODE expects 2 floats: threshold,gain");
+    }
   }
   else if (line.startsWith("SET_RLC,"))
   {
@@ -227,7 +279,6 @@ void handleCommandLine(String &line)
       Serial.println("ERR,SET_RLC expects 5 floats: R,L,C,input_gain,torque_gain");
     }
   }
-
   else if (line.startsWith("SET_PID,"))
   {
     int modeIdx;
@@ -267,6 +318,26 @@ void handleCommandLine(String &line)
   {
     Serial.print("ERR,unknown command: ");
     Serial.println(line);
+  }
+}
+
+void startTelemetryTask()
+{
+  const BaseType_t ok = xTaskCreatePinnedToCore(
+      TelemetryTask,
+      "TelemetryTask",
+      TELEMETRY_STACK_SIZE,
+      nullptr,
+      TELEMETRY_PRIORITY,
+      nullptr,
+      1);
+
+  if (ok != pdPASS)
+  {
+    Serial.println("Failed to create TelemetryTask");
+    while (true)
+    {
+    }
   }
 }
 

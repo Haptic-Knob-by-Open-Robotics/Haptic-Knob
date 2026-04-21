@@ -33,6 +33,14 @@ MCP3204CurrentSense::MCP3204CurrentSense(SPIClass *spi, int csn_pin, float vref,
     _volts_to_amps = 1.0f / shunt_ohm / amp_gain;
 
     gain_a = gain_b = gain_c = _volts_to_amps;
+
+    // Tell the base class that there are no analog ADC pins — this sensor
+    // reads currents over SPI (MCP3204 channels), not directly via MCU ADC pins.
+    // Without this, driverAlign() sees garbage pin values and makes wrong
+    // phase-swap decisions that corrupt the offset and gain arrays.
+    pinA = _NC;
+    pinB = _NC;
+    pinC = _NC;
 };
 
 // Inline sensor init function

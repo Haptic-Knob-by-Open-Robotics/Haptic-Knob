@@ -39,6 +39,14 @@ void ModifiedMagneticSensorMT6701SSI ::init(SPIClass *_spi)
         digitalWrite(nCS, HIGH);
     }
 
+    // Apply SPI settings (mode, speed, bit order) once here.
+    // beginTransaction() is intentionally NOT used in readRawAngleSSI()
+    // because on ESP32-S3 it reassigns the SPI bus to default GPIO pins,
+    // overriding the custom pins set by spiENC.begin().
+    spi->setDataMode(settings._dataMode);
+    spi->setFrequency(settings._clock);
+    spi->setBitOrder(settings._bitOrder);
+
     this->Sensor::init();
 }
 
@@ -49,18 +57,18 @@ uint16_t ModifiedMagneticSensorMT6701SSI ::readRawAngleSSI()
     if (nCS >= 0)
         digitalWrite(nCS, LOW);
 
-    // The MT6701 outputs a 24-bit frame:
-    // [14-bit angle][4-bit status][6-bit CRC]  = 24 bits = 3 bytes.
+    // The MT6701 SSI frame is 25 bits:
+    //   [1-bit invalid/marker][14-bit angle D13:D0][4-bit status][6-bit CRC]
     //
-    // Each spi->transfer(0x00) does two things at once:
-    //   1) Sends 0x00 on MOSI just to generate 8 clock pulses (dummy byte)
-    //   2) Receives 8 bits from the sensor on MISO/DO (this is what we store)
+    // We read 3 bytes (24 bits). With SPI_MODE2 (CLK idles high, capture on
+    // falling edge), the first bit clocked in is the invalid marker bit, so
+    // the 14 angle bits land in positions [22:9] of the 24-bit frame.
     //
-    // Because we are MSB-first, the first byte we receive contains the earliest
-    // (most significant) bits of the frame.
-    uint16_t b0 = spi->transfer(0x00); // receive first 8 angle bits D13:D6
-    uint16_t b1 = spi->transfer(0x00); // receive the rest 6 angle bits D5:D0 + 2 bit magnetic field status MG3:MG2
-    uint16_t b2 = spi->transfer(0x00); // receive the rest 2 magnetic field status MG1:MG0 and the rest crc code
+    // Each spi->transfer(0x00) clocks out 0x00 on MOSI to generate 8 clock
+    // pulses and captures 8 bits from MISO.
+    uint16_t b0 = spi->transfer(0x00); // bits [23:16]: invalid + D13:D7
+    uint16_t b1 = spi->transfer(0x00); // bits [15:8]:  D6:D0 + MG3:MG1
+    uint16_t b2 = spi->transfer(0x00); // bits [7:0]:   MG0 + CRC[5:0] (ignored)
 
     // End the SSI frame
     if (nCS >= 0)
@@ -73,8 +81,9 @@ uint16_t ModifiedMagneticSensorMT6701SSI ::readRawAngleSSI()
     // b2 becomes frame[7:0]
     uint32_t frame = (((uint32_t)b0 << 16) | (uint32_t)b1 << 8 | (uint32_t)b2);
 
-    // extract 14 bits angle data D13:D0
-    uint16_t angle = (frame >> 10) & 0x3FFF;
+    // Angle bits D13:D0 sit at frame[22:9] (leading invalid bit at [23]).
+    // Shift right by 9 and mask to 14 bits.
+    uint16_t angle = (frame >> 9) & 0x3FFF;
 
     return angle;
 };

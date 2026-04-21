@@ -39,7 +39,7 @@
 // From the datasheet, the MT6701 data transfer starts when CSN is pulled to logic 'Low'. see page 25 of the datasheet.
 // The MT6701 transfers data on the rising edge of CLK, and the data transfer finally stops when CSN is pulled to logic 'High'.
 // 1Mhz is the spi clock frequency
-static SPISettings MT6701SSISettings(1000000, MT6701_BITORDER, SPI_MODE1); // @suppress("Invalid arguments")
+static SPISettings MT6701SSISettings(1000000, MT6701_BITORDER, SPI_MODE2); // @suppress("Invalid arguments")
 
 class ModifiedMagneticSensorMT6701SSI : public Sensor
 {

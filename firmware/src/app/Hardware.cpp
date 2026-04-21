@@ -14,8 +14,8 @@ namespace
     bool setupCurrentSense();
     bool setupDriver();
     bool setupMotor();
-    SPIClass spiADC(1); // for MCP3204
-    SPIClass spiENC(2); // for encoder
+    SPIClass spiADC(0); // for MCP3204
+    SPIClass spiENC(1); // for encoder
 
     // ========== GLOBAL HARDWARE OBJECTS ==========
     // These are the core hardware/control objects used by the system.
@@ -64,14 +64,24 @@ namespace
 //
 bool initHardware()
 {
+    SimpleFOCDebug::enable();
+    SimpleFOCDebug::enable(&Serial);
     Serial.println("Starting hardware initialization...");
 
     // Start the SPI bus using the board-specific pin mapping from Config.h.
     //
     // We pass the encoder chip-select pin as the SS argument so the SPI
     // peripheral is configured consistently with our setup.
-    spiADC.begin(PIN_SPI_CLK_1, PIN_SPI_MISO_1, PIN_SPI_MOSI_1, PIN_ADC_CSN);
-    spiENC.begin(PIN_SPI_CLK_2, PIN_SPI_MISO_2, PIN_SPI_MOSI_2, PIN_ENC_CSN);
+    if (!spiADC.begin(PIN_SPI_CLK_1, PIN_SPI_MISO_1, PIN_SPI_MOSI_1, PIN_ADC_CSN))
+    {
+        Serial.println("SPI ADC FAILED");
+        return false;
+    }
+    if (!spiENC.begin(PIN_SPI_CLK_2, PIN_SPI_MISO_2, PIN_SPI_MOSI_2, PIN_ENC_CSN))
+    {
+        Serial.println("SPI ENC FAILED");
+        return false;
+    }
 
     // Initialize the encoder and attach it to the SPI bus we just started.
     // After this, the encoder object can begin reading shaft angle data.
@@ -117,7 +127,7 @@ bool initHardware()
 //
 void updateHardwareControlStep()
 {
-    encoder.update();
+    // encoder.update(); turns out simplefoc library internally updates the encoder commented out to prevent double calling
     motor.loopFOC();
 }
 
@@ -368,7 +378,26 @@ namespace
         //
         // This step typically performs the control-side startup/alignment
         // required before normal closed-loop operation.
+        //
+        // voltage_sensor_align is the open-loop voltage applied to spin the
+        // motor during alignment. Default is 1V which is often too low to
+        // produce detectable movement — set it explicitly.
+        // Sanity-check the encoder before handing it to initFOC.
+        // If all readings are 0 or identical, SPI is not working.
+        Serial.print("Encoder readings: ");
+        for (int i = 0; i < 5; i++)
+        {
+            encoder.update();
+            Serial.print(encoder.getAngle());
+            Serial.print(" ");
+            delay(50);
+        }
+        Serial.println();
+
+        motor.voltage_sensor_align = 2.0f;
+
         Serial.print("Initializing FOC... ");
+        current_sense.skip_align = true;
         if (!motor.initFOC())
         {
             Serial.println("FAILED");
